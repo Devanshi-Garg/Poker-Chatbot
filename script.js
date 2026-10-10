@@ -277,10 +277,10 @@ function renderTable() {
         const el = document.getElementById(`hole-${i}`);
         const card = gameState.hole[i];
         if (card) {
-            el.className = "card w-16 h-24 md:w-20 md:h-28 bg-white rounded-xl p-0.5 cursor-pointer shadow-xl border-2 border-emerald-400";
-            el.innerHTML = createCardElement(card, `Card ${i+1}`);
+            el.className = "poker-card w-16 h-24 md:w-20 md:h-28 cursor-pointer shadow-xl border-2 border-emerald-400";
+            el.innerHTML = renderCardContent(card.r, card.s);
         } else {
-            el.className = "card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl";
+            el.className = "poker-card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl";
             el.innerHTML = `<span class="text-xs text-emerald-300/80 font-medium">Card ${i+1}</span>`;
         }
     }
@@ -291,10 +291,10 @@ function renderTable() {
         const el = document.getElementById(`board-${i}`);
         const card = gameState.board[i];
         if (card) {
-            el.className = "card w-14 h-20 md:w-16 md:h-24 bg-white rounded-xl p-0.5 cursor-pointer shadow-md border-2 border-emerald-400";
-            el.innerHTML = createCardElement(card, boardNames[i]);
+            el.className = "poker-card w-14 h-20 md:w-16 md:h-24 cursor-pointer shadow-md border-2 border-emerald-400";
+            el.innerHTML = renderCardContent(card.r, card.s);
         } else {
-            el.className = "card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400";
+            el.className = "poker-card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400";
             el.innerHTML = `<span class="text-xs text-emerald-400/60">${boardNames[i]}</span>`;
         }
     }
