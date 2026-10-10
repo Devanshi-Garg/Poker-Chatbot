@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Mind - Texas Hold'em Monte Carlo & Gemini AI Advisor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pokerGreen: {
+                            800: '#0c3823',
+                            700: '#14532d',
+                            600: '#15803d',
+                            500: '#22c55e',
+                        },
+                        felt: '#0f3d24',
+                        feltBorder: '#3f2d1d',
+                        gold: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f3f4f6;
+            font-family: 'Inter', sans-serif;
+        }
+        .poker-felt {
+            background: radial-gradient(ellipse at center, #1b5e32 0%, #0d381e 70%, #072011 100%);
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.5);
+            border: 12px solid #3d2612;
+        }
+        .card {
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+        }
+        .suit-heart, .suit-diamond { color: #ef4444; }
+        .suit-club, .suit-spade { color: #1e293b; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-x-hidden">
+
+    <!-- Top Header -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-900/40">
+                    ♠
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-green-200 to-amber-300 bg-clip-text text-transparent">
+                        PokerMind AI
+                    </h1>
+                    <p class="text-xs text-slate-400">Monte Carlo Engine & Gemini Coach</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons / Key Setup -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleKeyModal()" id="apiKeyStatusBtn" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                    <span id="apiKeyDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span id="apiKeyText">Set Gemini API Key</span>
+                </button>
+                <button onclick="openGuideModal()" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-book-open">poker</i> Strategy Cheat Sheet
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- Left Panel: Table, Controls & Calculator (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Quick Preset Scenarios -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> Practice Preset Scenarios
+                    </h2>
+                    <span class="text-xs text-slate-500">Quick load hands</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="loadPreset('pocket_aces')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🔥 Pocket Aces (Preflop)
+                    </button>
+                    <button onclick="loadPreset('flush_draw')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🌊 Nut Flush Draw (Flop)
+                    </button>
+                    <button onclick="loadPreset('set_flop')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        💣 Three of a Kind (Flop)
+                    </button>
+                    <button onclick="loadPreset('bluff_river')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🎭 Missed Straight (River)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Poker Felt Visual Table -->
+            <div class="poker-felt rounded-3xl p-6 md:p-8 flex flex-col items-center justify-between min-h-[360px] relative overflow-hidden">
+                
+                <!-- Community Cards Area -->
+                <div class="text-center w-full z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/60 mb-2 block">
+                        Community Board (Flop / Turn / River)
+                    </span>
+                    <div class="flex justify-center items-center gap-2 md:gap-3 my-2">
+                        <!-- 5 Board Card Slots -->
+                        <div onclick="openCardPicker('board', 0)" id="board-0" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
+                            <span class="text-xs text-emerald-400/60">Flop 1</span>
+                        </div>
+                        <div onclick="openCardPicker('board', 1)" id="board-1" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
+                            <span class="text-xs text-emerald-400/60">Flop 2</span>
+                        </div>
+                        <div onclick="openCardPicker('board', 2)" id="board-2" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
+                            <span class="text-xs text-emerald-400/60">Flop 3</span>
+                        </div>
+                        <div onclick="openCardPicker('board', 3)" id="board-3" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
+                            <span class="text-xs text-emerald-400/60">Turn</span>
+                        </div>
+                        <div onclick="openCardPicker('board', 4)" id="board-4" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
+                            <span class="text-xs text-emerald-400/60">River</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pot Display Center Badge -->
+                <div class="my-4 bg-slate-950/80 border border-amber-500/40 px-6 py-2 rounded-full backdrop-blur text-center shadow-lg z-10">
+                    <span class="text-xs uppercase text-slate-400 tracking-wider font-semibold">Total Pot</span>
+                    <div class="text-amber-400 font-extrabold text-xl font-mono" id="tablePotDisplay">$150</div>
+                </div>
+
+                <!-- Hole Cards Player Area -->
+                <div class="text-center w-full z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/80 mb-2 block">
+                        Your Hole Cards (Hand)
+                    </span>
+                    <div class="flex justify-center items-center gap-3">
+                        <div onclick="openCardPicker('hole', 0)" id="hole-0" class="card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl">
+                            <span class="text-xs text-emerald-300/80 font-medium">Card 1</span>
+                        </div>
+                        <div onclick="openCardPicker('hole', 1)" id="hole-1" class="card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl">
+                            <span class="text-xs text-emerald-300/80 font-medium">Card 2</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Clear Button -->
+                <button onclick="clearTableCards()" class="absolute bottom-3 right-3 text-xs text-emerald-200/50 hover:text-emerald-200 bg-slate-950/50 hover:bg-slate-900 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition">
+                    <i class="fa-solid fa-rotate-left mr-1"></i> Clear Cards
+                </button>
+            </div>
+
+            <!-- Input Parameters & Run Button -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">
+                        Active Opponents (<span id="opponentsVal">2</span>)
+                    </label>
+                    <input type="range" min="1" max="8" value="2" id="opponentsInput" oninput="updateOpponents(this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>1 Heads up</span>
+                        <span>4 Medium</span>
+                        <span>8 Full Ring</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">Current Pot Size ($)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
+                        <input type="number" id="potInput" value="150" min="0" oninput="updatePot(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">To Call / Raise Amount ($)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
+                        <input type="number" id="callInput" value="50" min="0" oninput="updateCall(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="sm:col-span-3 mt-2">
+                    <button id="runSimBtn" onclick="runMonteCarloSimulation()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-slate-950 font-extrabold rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition text-base">
+                        <i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (10,000 Hands)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Monte Carlo Results Box -->
+            <div id="simResultsCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hidden">
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-200">Monte Carlo Equity Report</h3>
+                        <p id="simSubtitle" class="text-xs text-slate-400">Simulated 10,000 random card deals</p>
+                    </div>
+                    <div id="recommendedBadge" class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        RAISE / BET
+                    </div>
+                </div>
+
+                <!-- Core Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Win Equity</span>
+                        <span id="winRateVal" class="text-xl font-black text-emerald-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Tie %</span>
+                        <span id="tieRateVal" class="text-xl font-black text-amber-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Pot Odds</span>
+                        <span id="potOddsVal" class="text-xl font-black text-indigo-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Expected Value (EV)</span>
+                        <span id="evVal" class="text-xl font-black text-emerald-400 font-mono">+$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Visual Bar Breakdown -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Outcome Distribution</span>
+                        <span id="equityBreakdownLabel">Win: 0% | Tie: 0% | Loss: 0%</span>
+                    </div>
+                    <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden flex">
+                        <div id="winBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="tieBar" class="bg-amber-400 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="lossBar" class="bg-rose-500 h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed" id="simAnalysisText">
+                    Run simulation to view mathematical decision analysis.
+                </div>
+            </div>
+
+            <!-- Opponent Reads: tracks each opponent's likely hands from their actions -->
+            <div id="readsCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                <div class="flex justify-between items-start gap-3 mb-3">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-user-secret text-amber-400"></i> Opponent Reads
+                        </h3>
+                        <p class="text-xs text-slate-400">Log what each opponent does. Their likely hands narrow and your equity updates live.</p>
+                    </div>
+                    <button onclick="resetReads()" class="shrink-0 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-800 transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> New Hand
+                    </button>
+                </div>
+
+                <!-- Opponent Tabs -->
+                <div id="oppTabs" class="flex flex-wrap gap-1.5 mb-3"></div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 block mb-1">Player Type</label>
+                        <select id="oppTypeSelect" onchange="setOpponentType(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-emerald-500"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-400 block mb-1">Their Bet / Call Amount ($)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1.5 text-slate-500 font-mono text-sm">$</span>
+                            <input type="number" id="oppBetInput" value="50" min="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center text-[11px] text-slate-400 mb-2">
+                    <span>Street: <b id="streetLabel" class="text-slate-200">Preflop</b></span>
+                    <button onclick="undoOpponentAction()" class="text-slate-400 hover:text-slate-200"><i class="fa-solid fa-arrow-rotate-left mr-1"></i>Undo last</button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                    <button onclick="logOpponentAction('check')" class="py-2 rounded-xl text-xs font-bold bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 transition">Check</button>
+                    <button onclick="logOpponentAction('call')" class="py-2 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition">Call</button>
+                    <button onclick="logOpponentAction('raise')" class="py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition">Bet / Raise</button>
+                    <button onclick="logOpponentAction('fold')" class="py-2 rounded-xl text-xs font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25 transition">Fold</button>
+                </div>
+
+                <div id="readsUpdate" class="hidden mb-3 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs text-amber-100"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div class="md:col-span-3">
+                        <div class="flex justify-between text-[10px] uppercase font-bold text-slate-500 mb-1.5">
+                            <span>Likely Hands</span>
+                            <span id="rangeWidthLabel" class="normal-case font-semibold">Any hand possible</span>
+                        </div>
+                        <div id="rangeGrid" class="grid gap-px bg-slate-950 rounded-lg overflow-hidden" style="grid-template-columns: repeat(13, minmax(0, 1fr));"></div>
+                    </div>
+                    <div class="md:col-span-2 space-y-3">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">Most Likely Holdings</span>
+                            <div id="topHands" class="flex flex-wrap gap-1.5 text-xs text-slate-400">No reads yet</div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-500 block mb-1.5">Action Log</span>
+                            <div id="actionLog" class="space-y-1 max-h-40 overflow-y-auto text-xs text-slate-300"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Panel: Gemini AI Chat Advisor (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col h-[650px] lg:h-auto bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            
+            <!-- Chat Header -->
+            <div class="bg-slate-800/80 border-b border-slate-700/60 p-3.5 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-100">Gemini Poker Coach</h3>
+                        <p class="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Context-Aware Assistant
+                        </p>
+                    </div>
+                </div>
+                <button onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-700/50 transition">
+                    Clear Chat
+                </button>
+            </div>
+
+            <!-- Chat Message List -->
+            <div id="chatMessages" class="flex-grow p-4 overflow-y-auto space-y-3 font-sans text-sm">
+                <!-- Welcome Bot Message -->
+                <div class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+                        Welcome! I'm your Gemini Texas Hold'em AI Coach. Select your 2 hole cards and any community board cards on the table, then run the Monte Carlo simulation. 
+                        <br><br>
+                        Once simulated, ask me anything! E.g. <i>"Should I re-raise or just call?"</i> or <i>"Explain pot odds to me like I'm 10."</i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick AI Prompt Suggestions -->
+            <div class="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex gap-2 overflow-x-auto text-[11px] no-scrollbar">
+                <button onclick="sendQuickPrompt('Explain why the Monte Carlo calculation recommends this action.')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
+                    💡 Explain recommendation
+                </button>
+                <button onclick="sendQuickPrompt('What if my opponent goes all-in?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
+                    ⚔️ What if they call/re-raise?
+                </button>
+                <button onclick="sendQuickPrompt('How does my table position affect this decision?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
+                    📍 Position Advice
+                </button>
+                <button onclick="sendQuickPrompt('Based on how my opponents have acted, what hands are they likely holding, and how should that change my play?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
+                    🕵️ Read my opponents
+                </button>
+            </div>
+
+            <!-- Chat Input Form -->
+            <form onsubmit="handleChatSubmit(event)" class="p-3 bg-slate-950 border-t border-slate-800 flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask Gemini strategy question..." class="flex-grow bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 placeholder-slate-500">
+                <button type="submit" id="sendBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shrink-0">
+                    <span>Send</span>
+                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                </button>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- Card Picker Modal -->
+    <div id="cardPickerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-slate-200" id="pickerModalTitle">Select Card</h3>
+                <button onclick="closeCardPicker()" class="text-slate-400 hover:text-slate-100 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Suit Selector Tabs -->
+            <div class="flex gap-2 mb-4 bg-slate-950 p-1 rounded-xl">
+                <button onclick="filterSuit('s')" id="suitBtn-s" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">♠ Spades</button>
+                <button onclick="filterSuit('h')" id="suitBtn-h" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800">♥ Hearts</button>
+                <button onclick="filterSuit('d')" id="suitBtn-d" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800">♦ Diamonds</button>
+                <button onclick="filterSuit('c')" id="suitBtn-c" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">♣ Clubs</button>
+            </div>
+
+            <!-- Rank Grid -->
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-60 overflow-y-auto p-1" id="cardRankGrid">
+                <!-- Dynamically generated card buttons -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between">
+                <button onclick="removeSelectedCard()" class="px-3 py-1.5 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-lg text-xs font-semibold">
+                    Remove Card
+                </button>
+                <button onclick="closeCardPicker()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Settings Modal -->
+    <div id="keyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-100 mb-2">Configure Gemini API Key</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                Enter your Google Gemini API Key below. Your key is stored strictly in your local browser storage and is never sent to any intermediate server.
+            </p>
+            
+            <div class="mb-4">
+                <label class="text-xs font-bold text-slate-300 block mb-1">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 mb-4 space-y-1">
+                <p class="font-semibold text-slate-300">How to get a free API Key:</p>
+                <ol class="list-decimal list-inside space-y-0.5 text-slate-400">
+                    <li>Visit <a href="https://aistudio.google.com/" target="_blank" class="text-emerald-400 underline">Google AI Studio</a></li>
+                    <li>Click "Get API Key"</li>
+                    <li>Paste your generated key here</li>
+                </ol>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleKeyModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveApiKey()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategy Cheat Sheet Modal -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h3 class="text-base font-bold text-slate-100"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i> Texas Hold'em Beginner Cheat Sheet</h3>
+                <button onclick="closeGuideModal()" class="text-slate-400 hover:text-slate-100 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Poker Hand Rankings -->
+            <div class="space-y-4 text-xs">
+                <div>
+                    <h4 class="font-bold text-amber-400 uppercase tracking-wider mb-2">Hand Rankings (Highest to Lowest)</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>1. Royal Flush:</b> A, K, Q, J, 10 same suit</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>2. Straight Flush:</b> 5 consecutive same suit</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>3. Four of a Kind:</b> 4 cards same rank</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>4. Full House:</b> 3 of a kind + 1 pair</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>5. Flush:</b> Any 5 cards same suit</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>6. Straight:</b> 5 consecutive rank cards</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>7. Three of a Kind:</b> 3 cards same rank</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>8. Two Pair:</b> 2 distinct pairs</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>9. One Pair:</b> 2 cards same rank</div>
+                        <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>10. High Card:</b> Highest single card</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-emerald-400 uppercase tracking-wider mb-2">Key Concepts Glossary</h4>
+                    <div class="space-y-2 text-slate-300">
+                        <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Pot Odds:</b> The ratio of the current pot size to the cost of a contemplated call. If calling costs $50 into a $150 pot, pot odds are 50 / (150+50) = 25%.</p>
+                        <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Win Equity:</b> Your mathematical percentage probability of winning the hand by the river based on simulation.</p>
+                        <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Expected Value (EV):</b> The average amount won or lost per bet over the long run. If Win Equity > Pot Odds, EV is positive (+EV).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-xs text-slate-500">
+        PokerMind AI © 2026 • Client-Side Monte Carlo Engine & Gemini API Integration
+    </footer>
+
+    <script>
+        // ==========================================
+        // CONSTANTS & GAME STATE
+        // ==========================================
+        const SUITS = ['s', 'h', 'd', 'c']; // spades, hearts, diamonds, clubs
+        const SUIT_SYMBOLS = { 's': '♠', 'h': '♥', 'd': '♦', 'c': '♣' };
+        const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+        const RANK_VALUES = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
+
+        let gameState = {
+            hole: [null, null], // 2 hole cards
+            board: [null, null, null, null, null], // Up to 5 board cards
+            opponents: 2,
+            pot: 150,
+            callAmount: 50,
+            activePickerTarget: null, // { type: 'hole'|'board', index: 0-4 }
+            selectedSuitFilter: 's',
+            lastSimResults: null
+        };
+
+        let chatHistory = [];
+
+        // Preset hands for quick testing
+        const PRESETS = {
+            pocket_aces: {
+                hole: [{r:'A', s:'s'}, {r:'A', s:'h'}],
+                board: [null, null, null, null, null],
+                pot: 100, call: 30, opponents: 2
+            },
+            flush_draw: {
+                hole: [{r:'A', s:'h'}, {r:'K', s:'h'}],
+                board: [{r:'J', s:'h'}, {r:'4', s:'h'}, {r:'9', s:'c'}, null, null],
+                pot: 200, call: 60, opponents: 3
+            },
+            set_flop: {
+                hole: [{r:'8', s:'s'}, {r:'8', s:'d'}],
+                board: [{r:'8', s:'h'}, {r:'K', s:'c'}, {r:'2', s:'s'}, null, null],
+                pot: 250, call: 50, opponents: 2
+            },
+            bluff_river: {
+                hole: [{r:'J', s:'d'}, {r:'T', s:'s'}],
+                board: [{r:'K', s:'h'}, {r:'Q', s:'c'}, {r:'4', s:'s'}, {r:'2', s:'d'}, {r:'7', s:'h'}],
+                pot: 400, call: 150, opponents: 1
+            }
+        };
+
+        // Initialize App
+        window.onload = function() {
+            checkApiKeyStatus();
+            renderTable();
+        };
+
+        function checkApiKeyStatus() {
+            const key = localStorage.getItem('gemini_api_key');
+            const dot = document.getElementById('apiKeyDot');
+            const text = document.getElementById('apiKeyText');
+            if (key) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+                text.innerText = "Gemini Key Saved";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+                text.innerText = "Set Gemini API Key";
+            }
+        }
+
+        function toggleKeyModal() {
+            const modal = document.getElementById('keyModal');
+            modal.classList.toggle('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                checkApiKeyStatus();
+                toggleKeyModal();
+                alert('Gemini API key saved successfully!');
+            }
+        }
+
+        function openGuideModal() {
+            document.getElementById('guideModal').classList.remove('hidden');
+        }
+
+        function closeGuideModal() {
+            document.getElementById('guideModal').classList.add('hidden');
+        }
+
+        function openCardPicker(type, index) {
+            gameState.activePickerTarget = { type, index };
+            document.getElementById('pickerModalTitle').innerText = `Select ${type === 'hole' ? 'Hole Card ' + (index+1) : 'Board Card ' + (index+1)}`;
+            renderRankGrid();
+            document.getElementById('cardPickerModal').classList.remove('hidden');
+        }
+
+        function closeCardPicker() {
+            document.getElementById('cardPickerModal').classList.add('hidden');
+            gameState.activePickerTarget = null;
+        }
+
+        function filterSuit(suit) {
+            gameState.selectedSuitFilter = suit;
+            document.querySelectorAll('.suit-tab').forEach(btn => {
+                btn.className = "suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:bg-slate-800";
+            });
+            const activeBtn = document.getElementById(`suitBtn-${suit}`);
+            activeBtn.className = "suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 border border-slate-700";
+            renderRankGrid();
+        }
+
+        function isCardInUse(rank, suit) {
+            const match = card => card && card.r === rank && card.s === suit;
+            return gameState.hole.some(match) || gameState.board.some(match);
+        }
+
+        function renderRankGrid() {
+            const grid = document.getElementById('cardRankGrid');
+            grid.innerHTML = '';
+            const suit = gameState.selectedSuitFilter;
+
+            RANKS.slice().reverse().forEach(rank => {
+                const used = isCardInUse(rank, suit);
+                const btn = document.createElement('button');
+                const isRed = suit === 'h' || suit === 'd';
+                btn.disabled = used;
+                btn.className = `p-3 rounded-xl border font-mono font-bold text-sm flex flex-col items-center justify-center transition ${
+                    used 
+                    ? 'bg-slate-950 border-slate-900 text-slate-700 cursor-not-allowed opacity-40' 
+                    : 'bg-slate-800 border-slate-700 hover:border-amber-400 text-slate-100 hover:bg-slate-700'
+                }`;
+                btn.innerHTML = `<span>${rank}</span><span class="${isRed ? 'text-red-400' : 'text-slate-300'}">${SUIT_SYMBOLS[suit]}</span>`;
+                btn.onclick = () => selectCard(rank, suit);
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectCard(rank, suit) {
+            if (!gameState.activePickerTarget) return;
+            const { type, index } = gameState.activePickerTarget;
+            gameState[type][index] = { r: rank, s: suit };
+            closeCardPicker();
+            renderTable();
+        }
+
+        function removeSelectedCard() {
+            if (!gameState.activePickerTarget) return;
+            const { type, index } = gameState.activePickerTarget;
+            gameState[type][index] = null;
+            closeCardPicker();
+            renderTable();
+        }
+
+        function clearTableCards() {
+            gameState.hole = [null, null];
+            gameState.board = [null, null, null, null, null];
+            resetReads();
+            renderTable();
+            document.getElementById('simResultsCard').classList.add('hidden');
+        }
+
+        function updateOpponents(val) {
+            gameState.opponents = parseInt(val);
+            document.getElementById('opponentsVal').innerText = val;
+            renderReads();
+        }
+
+        function updatePot(val) {
+            gameState.pot = parseFloat(val) || 0;
+            document.getElementById('tablePotDisplay').innerText = `$${gameState.pot}`;
+        }
+
+        function updateCall(val) {
+            gameState.callAmount = parseFloat(val) || 0;
+        }
+
+        function loadPreset(key) {
+            const preset = PRESETS[key];
+            if (!preset) return;
+            gameState.hole = JSON.parse(JSON.stringify(preset.hole));
+            gameState.board = JSON.parse(JSON.stringify(preset.board));
+            gameState.pot = preset.pot;
+            gameState.callAmount = preset.call;
+            gameState.opponents = preset.opponents;
+
+            document.getElementById('potInput').value = preset.pot;
+            document.getElementById('callInput').value = preset.call;
+            document.getElementById('opponentsInput').value = preset.opponents;
+            document.getElementById('opponentsVal').innerText = preset.opponents;
+            document.getElementById('tablePotDisplay').innerText = `$${preset.pot}`;
+
+            resetReads();
+            renderTable();
+            runMonteCarloSimulation();
+        }
+
+        function createCardElement(card, placeholderText) {
+            if (!card) {
+                return `<span class="text-xs text-emerald-400/50">${placeholderText}</span>`;
+            }
+            const isRed = card.s === 'h' || card.s === 'd';
+            return `
+                <div class="bg-white text-slate-900 w-full h-full rounded-xl flex flex-col justify-between p-1.5 shadow-md font-mono">
+                    <div class="text-xs font-black leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}">${card.r}</div>
+                    <div class="text-base text-center leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}">${SUIT_SYMBOLS[card.s]}</div>
+                    <div class="text-xs font-black text-right leading-none ${isRed ? 'text-red-600' : 'text-slate-900'}">${card.r}</div>
+                </div>
+            `;
+        }
+
+        function renderTable() {
+            // Render hole cards
+            for (let i = 0; i < 2; i++) {
+                const el = document.getElementById(`hole-${i}`);
+                const card = gameState.hole[i];
+                if (card) {
+                    el.className = "card w-16 h-24 md:w-20 md:h-28 bg-white rounded-xl p-0.5 cursor-pointer shadow-xl border-2 border-emerald-400";
+                    el.innerHTML = createCardElement(card, `Card ${i+1}`);
+                } else {
+                    el.className = "card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl";
+                    el.innerHTML = `<span class="text-xs text-emerald-300/80 font-medium">Card ${i+1}</span>`;
+                }
+            }
+
+            // Render board cards
+            const boardNames = ['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'];
+            for (let i = 0; i < 5; i++) {
+                const el = document.getElementById(`board-${i}`);
+                const card = gameState.board[i];
+                if (card) {
+                    el.className = "card w-14 h-20 md:w-16 md:h-24 bg-white rounded-xl p-0.5 cursor-pointer shadow-md border-2 border-emerald-400";
+                    el.innerHTML = createCardElement(card, boardNames[i]);
+                } else {
+                    el.className = "card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400";
+                    el.innerHTML = `<span class="text-xs text-emerald-400/60">${boardNames[i]}</span>`;
+                }
+            }
+
+            // Street and blocked hands in Opponent Reads depend on the cards shown
+            renderReads();
+        }
+
+        // 7-Card Hand Evaluation Logic
+        function evaluate7CardHand(cards) {
+            // Convert cards to numeric values
+            const parsed = cards.map(c => ({ r: RANK_VALUES[c.r], s: c.s }));
+            
+            // Generate all 21 combinations of 5 cards out of 7
+            let bestScore = -1;
+            const len = parsed.length;
+
+            for (let a = 0; a < len - 4; a++) {
+                for (let b = a + 1; b < len - 3; b++) {
+                    for (let c = b + 1; c < len - 2; c++) {
+                        for (let d = c + 1; d < len - 1; d++) {
+                            for (let e = d + 1; e < len; e++) {
+                                const combo = [parsed[a], parsed[b], parsed[c], parsed[d], parsed[e]];
+                                const score = score5CardHand(combo);
+                                if (score > bestScore) bestScore = score;
+                            }
+                        }
+                    }
+                }
+            }
+            return bestScore;
+        }
+
+        // Returns a unique integer score for comparing 5-card hands
+        function score5CardHand(hand) {
+            hand.sort((a, b) => b.r - a.r); // Sort descending
+            const ranks = hand.map(c => c.r);
+            const suits = hand.map(c => c.s);
+
+            const isFlush = suits.every(s => s === suits[0]);
+            
+            // Check Straight
+            let isStraight = false;
+            let straightHigh = 0;
+            if (ranks[0] - ranks[4] === 4 && new Set(ranks).size === 5) {
+                isStraight = true;
+                straightHigh = ranks[0];
+            } else if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) {
+                // Ace-low straight (A-2-3-4-5)
+                isStraight = true;
+                straightHigh = 5;
+            }
+
+            // Rank counts
+            const counts = {};
+            ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+            const countPairs = Object.entries(counts).map(([r, count]) => ({ r: Number(r), count }));
+            countPairs.sort((a, b) => b.count - a.count || b.r - a.r);
+
+            // Hand Categories (Base Multipliers)
+            // 8: Straight Flush, 7: 4 of a kind, 6: Full House, 5: Flush, 4: Straight, 3: 3 of a kind, 2: Two Pair, 1: Pair, 0: High Card
+            let category = 0;
+
+            if (isStraight && isFlush) category = 8;
+            else if (countPairs[0].count === 4) category = 7;
+            else if (countPairs[0].count === 3 && countPairs[1].count === 2) category = 6;
+            else if (isFlush) category = 5;
+            else if (isStraight) category = 4;
+            else if (countPairs[0].count === 3) category = 3;
+            else if (countPairs[0].count === 2 && countPairs[1].count === 2) category = 2;
+            else if (countPairs[0].count === 2) category = 1;
+            else category = 0;
+
+            // Construct bitwise score integer for instant fast comparisons
+            let score = category * 1000000;
+            if (category === 8 || category === 4) {
+                score += straightHigh;
+            } else {
+                let tiebreaker = 0;
+                countPairs.forEach((cp, idx) => {
+                    tiebreaker += cp.r * Math.pow(15, 4 - idx);
+                });
+                score += tiebreaker;
+            }
+            return score;
+        }
+
+        // ==========================================
+        // OPPONENT READS: BAYESIAN RANGE TRACKING
+        // ==========================================
+        // Each opponent has a weight for all 1326 possible hole-card combos.
+        // Every logged action multiplies each combo's weight by how likely that
+        // hand is to take that action (Bayes' rule). The Monte Carlo then deals
+        // opponents hands drawn from these weights instead of uniformly at random.
+
+        // Card index 0-51 = rankIndex * 4 + suitIndex
+        const CARD_OBJS = [];
+        RANKS.forEach(r => SUITS.forEach(s => CARD_OBJS.push({ r, s })));
+        const cardIndex = c => RANKS.indexOf(c.r) * 4 + SUITS.indexOf(c.s);
+
+        const ALL_COMBOS = [];
+        for (let a = 0; a < 52; a++) {
+            for (let b = a + 1; b < 52; b++) ALL_COMBOS.push([a, b]);
+        }
+        const NUM_COMBOS = ALL_COMBOS.length; // 1326
+
+        // e.g. "AKs", "T9o", "77"
+        const COMBO_CLASS = ALL_COMBOS.map(([a, b]) => {
+            const hi = Math.max(a >> 2, b >> 2), lo = Math.min(a >> 2, b >> 2);
+            if (hi === lo) return RANKS[hi] + RANKS[lo];
+            return RANKS[hi] + RANKS[lo] + ((a & 3) === (b & 3) ? 's' : 'o');
+        });
+
+        // How each player type plays:
+        // vpip = share of hands played preflop, pfr = share raised preflop,
+        // betFreq = share of their range that bets a half-pot after the flop,
+        // bluff = chance a weak hand bets/raises anyway
+        const PLAYER_TYPES = {
+            average: { label: 'Average Player', vpip: 0.30, pfr: 0.15, betFreq: 0.40, bluff: 0.03 },
+            rock:    { label: 'Tight & Careful (Rock)', vpip: 0.15, pfr: 0.08, betFreq: 0.30, bluff: 0.01 },
+            station: { label: 'Calls Everything (Station)', vpip: 0.60, pfr: 0.06, betFreq: 0.25, bluff: 0.02 },
+            maniac:  { label: 'Loose & Aggressive (Maniac)', vpip: 0.55, pfr: 0.35, betFreq: 0.65, bluff: 0.12 }
+        };
+
+        const STREET_NAMES = { 0: 'Preflop', 3: 'Flop', 4: 'Turn', 5: 'River' };
+
+        let opponentReads = createOpponentReads();
+        let selectedOpp = 0;
+        let baselineCache = { key: null, equity: null };
+
+        function createOpponentReads(types = []) {
+            return Array.from({ length: 8 }, (_, i) => ({
+                type: types[i] || 'average',
+                actions: [],
+                folded: false,
+                weights: new Float64Array(NUM_COMBOS).fill(1)
+            }));
+        }
+
+        function getActiveOpponents() {
+            return opponentReads.slice(0, gameState.opponents).filter(o => !o.folded);
+        }
+
+        // Chen formula: quick preflop hand score (about -1 to 20)
+        function chenScore(a, b) {
+            const r1 = Math.max(a >> 2, b >> 2) + 2, r2 = Math.min(a >> 2, b >> 2) + 2;
+            const high = { 14: 10, 13: 8, 12: 7, 11: 6 }[r1] ?? r1 / 2;
+            if (r1 === r2) return Math.max(high * 2, 5);
+            let score = high;
+            if ((a & 3) === (b & 3)) score += 2;
+            const gap = r1 - r2 - 1;
+            score -= gap < 4 ? [0, 1, 2, 4][gap] : 5;
+            if (gap <= 1 && r1 < 12) score += 1;
+            return score;
+        }
+
+        // Raw hand strength of every combo on a board (NaN = blocked by the board)
+        const rawStrengthCache = {};
+        function rawStrengths(boardIdx) {
+            const key = boardIdx.join(',');
+            if (rawStrengthCache[key]) return rawStrengthCache[key];
+            const raw = new Float64Array(NUM_COMBOS).fill(NaN);
+            const boardCards = boardIdx.map(i => CARD_OBJS[i]);
+            ALL_COMBOS.forEach(([a, b], k) => {
+                if (boardIdx.includes(a) || boardIdx.includes(b)) return;
+                raw[k] = boardIdx.length
+                    ? evaluate7CardHand([CARD_OBJS[a], CARD_OBJS[b], ...boardCards])
+                    : chenScore(a, b);
+            });
+            return (rawStrengthCache[key] = raw);
+        }
+
+        // Percentile of each combo inside the opponent's current range (1 = their best hand).
+        // Ranking within the range is what makes "they raise their top 15%" mean the
+        // right thing after earlier actions already narrowed it.
+        function rangePercentiles(raw, weights) {
+            const live = [];
+            for (let k = 0; k < NUM_COMBOS; k++) {
+                if (!Number.isNaN(raw[k]) && weights[k] > 0) live.push(k);
+            }
+            live.sort((x, y) => raw[x] - raw[y]);
+            const total = live.reduce((sum, k) => sum + weights[k], 0);
+            const pct = new Float64Array(NUM_COMBOS).fill(NaN);
+            let below = 0;
+            for (let i = 0; i < live.length;) {
+                let j = i, w = 0;
+                while (j < live.length && raw[live[j]] === raw[live[i]]) w += weights[live[j++]];
+                for (let m = i; m < j; m++) pct[live[m]] = (below + w / 2) / total; // tied hands share a percentile
+                below += w;
+                i = j;
+            }
+            return pct;
+        }
+
+        const sigmoid = x => 1 / (1 + Math.exp(-x));
+
+        // P(action | hand at percentile s of their range). betFrac = bet / pot.
+        function actionLikelihood(s, action, betFrac, preflop, p) {
+            const steep = 40;
+            let tCall, tRaise;
+            if (preflop) {
+                tCall = 1 - p.vpip;
+                tRaise = 1 - p.pfr;
+            } else {
+                // Bigger bets called = stronger hands; loose players call wider
+                tCall = Math.min(0.95, Math.max(0.05, 0.4 + 0.1 * Math.min(betFrac, 3) - (p.vpip - 0.30)));
+                // Bigger bets = narrower range
+                tRaise = 1 - p.betFreq / (1 + betFrac);
+            }
+            const pStrong = sigmoid(steep * (s - tRaise));
+            let prob;
+            if (action === 'raise') prob = p.bluff + (1 - p.bluff) * pStrong;
+            else if (action === 'call') prob = sigmoid(steep * (s - tCall)) * (1 - 0.6 * pStrong);
+            else if (action === 'check') prob = 1 - 0.7 * pStrong; // strong hands mostly bet, sometimes trap
+            else prob = 1;
+            return Math.max(prob, 0.01); // never rule a hand out completely
+        }
+
+        // Replay an opponent's action log from scratch (so changing player type re-reads everything)
+        function recomputeRange(opp) {
+            const w = new Float64Array(NUM_COMBOS).fill(1);
+            const profile = PLAYER_TYPES[opp.type];
+            for (const act of opp.actions) {
+                if (act.action === 'fold') continue;
+                const pct = rangePercentiles(rawStrengths(act.board), w);
+                let total = 0;
+                for (let k = 0; k < NUM_COMBOS; k++) {
+                    w[k] = Number.isNaN(pct[k])
+                        ? 0
+                        : w[k] * actionLikelihood(pct[k], act.action, act.betFrac, act.board.length === 0, profile);
+                    total += w[k];
+                }
+                for (let k = 0; k < NUM_COMBOS; k++) w[k] /= total;
+            }
+            opp.weights = w;
+        }
+
+        // Cumulative weights over combos that don't use known cards
+        function buildRangeSampler(weights, known) {
+            const combos = [], cum = [];
+            let total = 0;
+            for (let k = 0; k < NUM_COMBOS; k++) {
+                const [a, b] = ALL_COMBOS[k];
+                if (weights[k] > 0 && !known.has(a) && !known.has(b)) {
+                    total += weights[k];
+                    combos.push(k);
+                    cum.push(total);
+                }
+            }
+            return { combos, cum, total };
+        }
+
+        function sampleRange(sampler) {
+            const x = Math.random() * sampler.total;
+            let lo = 0, hi = sampler.cum.length - 1;
+            while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (sampler.cum[mid] < x) lo = mid + 1; else hi = mid;
+            }
+            return sampler.combos[lo];
+        }
+
+        // Monte Carlo core. Opponents' hole cards come from their read ranges
+        // (uniform when nothing is logged, which matches a plain random deal).
+        function simulateEquity(iterations, oppWeights) {
+            const activeBoardCards = gameState.board.filter(Boolean);
+            const known = new Set([...gameState.hole, ...activeBoardCards].map(cardIndex));
+            const deck = [];
+            for (let c = 0; c < 52; c++) if (!known.has(c)) deck.push(c);
+            const samplers = oppWeights.map(w => buildRangeSampler(w, known));
+            const usedIn = new Int32Array(52).fill(-1); // iteration number a card was dealt in
+            let wins = 0, ties = 0, losses = 0;
+
+            for (let i = 0; i < iterations; i++) {
+                // Deal each opponent a hand from their range, avoiding cards already dealt this round
+                const oppHoles = [];
+                for (const sampler of samplers) {
+                    let combo = null;
+                    for (let tries = 0; tries < 25 && !combo && sampler.total > 0; tries++) {
+                        const [a, b] = ALL_COMBOS[sampleRange(sampler)];
+                        if (usedIn[a] !== i && usedIn[b] !== i) combo = [a, b];
+                    }
+                    if (!combo) {
+                        const free = deck.filter(c => usedIn[c] !== i);
+                        const x = free.splice(Math.floor(Math.random() * free.length), 1)[0];
+                        combo = [x, free[Math.floor(Math.random() * free.length)]];
+                    }
+                    usedIn[combo[0]] = usedIn[combo[1]] = i;
+                    oppHoles.push(combo.map(c => CARD_OBJS[c]));
+                }
+
+                // Deal the rest of the board from what's left
+                const simBoard = activeBoardCards.slice();
+                const remaining = deck.slice();
+                let n = remaining.length;
+                while (simBoard.length < 5) {
+                    const k = Math.floor(Math.random() * n);
+                    const c = remaining[k];
+                    remaining[k] = remaining[--n];
+                    if (usedIn[c] !== i) simBoard.push(CARD_OBJS[c]);
+                }
+
+                const playerScore = evaluate7CardHand([...gameState.hole, ...simBoard]);
+                let bestOpponentScore = -1;
+                for (const hole of oppHoles) {
+                    const oppScore = evaluate7CardHand([...hole, ...simBoard]);
+                    if (oppScore > bestOpponentScore) bestOpponentScore = oppScore;
+                }
+
+                if (playerScore > bestOpponentScore) wins++;
+                else if (playerScore === bestOpponentScore) ties++;
+                else losses++;
+            }
+            return { wins, ties, losses };
+        }
+
+        function tableKey(activeCount) {
+            return [...gameState.hole, ...gameState.board].map(c => c ? c.r + c.s : '-').join('') + '|' + activeCount;
+        }
+
+        // Equity vs random hands, for "your reads moved equity from X to Y"
+        function baselineEquity(activeCount) {
+            const key = tableKey(activeCount);
+            if (baselineCache.key !== key) {
+                const iterations = 3000;
+                const uniform = new Float64Array(NUM_COMBOS).fill(1);
+                const r = simulateEquity(iterations, Array(activeCount).fill(uniform));
+                baselineCache = { key, equity: (r.wins + r.ties / 2) / iterations * 100 };
+            }
+            return baselineCache.equity;
+        }
+
+        // Share of each hand class in the range, effective width, and the top classes
+        function summarizeRange(opp) {
+            const dead = new Set([...gameState.hole, ...gameState.board].filter(Boolean).map(cardIndex));
+            const classes = {};
+            let total = 0;
+            ALL_COMBOS.forEach(([a, b], k) => {
+                if (dead.has(a) || dead.has(b)) return;
+                const c = classes[COMBO_CLASS[k]] ||= { weight: 0, combos: 0 };
+                c.weight += opp.weights[k];
+                c.combos++;
+                total += opp.weights[k];
+            });
+            // Effective width = exp(entropy) / possible combos (100% = any hand)
+            let entropy = 0, live = 0;
+            ALL_COMBOS.forEach(([a, b], k) => {
+                if (dead.has(a) || dead.has(b)) return;
+                live++;
+                const p = opp.weights[k] / total;
+                if (p > 0) entropy -= p * Math.log(p);
+            });
+            const top = Object.entries(classes)
+                .sort((x, y) => y[1].weight - x[1].weight)
+                .slice(0, 6)
+                .map(([label, c]) => ({ label, share: c.weight / total * 100 }));
+            return { classes, widthPct: Math.exp(entropy) / live * 100, top };
+        }
+
+        function describeAction(a) {
+            if (a.action === 'raise') return `bet/raised $${a.amount} (${a.betFrac.toFixed(1)}x pot)`;
+            if (a.action === 'call') return `called $${a.amount}`;
+            return a.action === 'check' ? 'checked' : 'folded';
+        }
+
+        function logOpponentAction(action) {
+            const board = gameState.board.filter(Boolean);
+            if (!(board.length in STREET_NAMES)) {
+                alert('Finish entering the 3 flop cards before logging an action after the flop.');
+                return;
+            }
+            const opp = opponentReads[selectedOpp];
+            if (opp.folded) {
+                alert(`Opponent ${selectedOpp + 1} already folded. Click "New Hand" to start over.`);
+                return;
+            }
+            const sized = action === 'raise' || action === 'call';
+            const amount = sized ? (parseFloat(document.getElementById('oppBetInput').value) || 0) : 0;
+            const entry = {
+                action,
+                street: STREET_NAMES[board.length],
+                board: board.map(cardIndex),
+                amount,
+                betFrac: sized && gameState.pot > 0 ? amount / gameState.pot : 0
+            };
+            opp.actions.push(entry);
+            if (action === 'fold') opp.folded = true;
+            recomputeRange(opp);
+            renderReads();
+            if (gameState.hole[0] && gameState.hole[1]) {
+                const when = entry.street === 'Preflop' ? 'preflop' : `on the ${entry.street.toLowerCase()}`;
+                runMonteCarloSimulation(`Opp ${selectedOpp + 1} ${describeAction(entry)} ${when}`);
+            }
+        }
+
+        function undoOpponentAction() {
+            const opp = opponentReads[selectedOpp];
+            if (!opp.actions.length) return;
+            opp.actions.pop();
+            opp.folded = opp.actions.some(a => a.action === 'fold');
+            recomputeRange(opp);
+            renderReads();
+            if (gameState.hole[0] && gameState.hole[1]) {
+                runMonteCarloSimulation(`Undid Opp ${selectedOpp + 1}'s last action`);
+            }
+        }
+
+        function setOpponentType(type) {
+            const opp = opponentReads[selectedOpp];
+            opp.type = type;
+            recomputeRange(opp);
+            renderReads();
+            if (opp.actions.length && gameState.hole[0] && gameState.hole[1]) {
+                runMonteCarloSimulation(`Opp ${selectedOpp + 1} re-read as ${PLAYER_TYPES[type].label}`);
+            }
+        }
+
+        function selectOpponent(i) {
+            selectedOpp = i;
+            renderReads();
+        }
+
+        // New hand: clear actions but remember who plays how
+        function resetReads() {
+            opponentReads = createOpponentReads(opponentReads.map(o => o.type));
+            document.getElementById('readsUpdate').classList.add('hidden');
+            renderReads();
+        }
+
+        function renderReads() {
+            selectedOpp = Math.min(selectedOpp, gameState.opponents - 1);
+            const opp = opponentReads[selectedOpp];
+
+            // Opponent tabs
+            document.getElementById('oppTabs').innerHTML = opponentReads.slice(0, gameState.opponents).map((o, i) => {
+                const active = i === selectedOpp;
+                const style = o.folded
+                    ? 'bg-slate-950 text-slate-600 border-slate-800 line-through'
+                    : active
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+                const count = o.actions.length ? ` <span class="opacity-60">· ${o.actions.length}</span>` : '';
+                return `<button onclick="selectOpponent(${i})" class="px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${style} ${active ? 'ring-1 ring-emerald-400/60' : ''}">Opp ${i + 1}${count}</button>`;
+            }).join('');
+
+            document.getElementById('oppTypeSelect').innerHTML = Object.entries(PLAYER_TYPES)
+                .map(([key, t]) => `<option value="${key}" ${key === opp.type ? 'selected' : ''}>${t.label}</option>`)
+                .join('');
+
+            const boardCount = gameState.board.filter(Boolean).length;
+            document.getElementById('streetLabel').innerText = STREET_NAMES[boardCount] || 'Finish the flop';
+
+            // Action log
+            document.getElementById('actionLog').innerHTML = opp.actions.length
+                ? opp.actions.map(a => `<div class="flex gap-2"><span class="text-slate-500 w-12 shrink-0">${a.street}</span><span>${describeAction(a)}</span></div>`).join('')
+                : '<span class="text-slate-500">No actions logged</span>';
+
+            // 13x13 grid: pairs on the diagonal, suited above, offsuit below
+            const summary = summarizeRange(opp);
+            const avg = label => {
+                const c = summary.classes[label];
+                return c && c.combos ? c.weight / c.combos : 0;
+            };
+            const desc = RANKS.slice().reverse();
+            let maxAvg = 0;
+            Object.keys(summary.classes).forEach(label => { maxAvg = Math.max(maxAvg, avg(label)); });
+            let cells = '';
+            for (let i = 0; i < 13; i++) {
+                for (let j = 0; j < 13; j++) {
+                    const label = i === j ? desc[i] + desc[j] : i < j ? desc[i] + desc[j] + 's' : desc[j] + desc[i] + 'o';
+                    const norm = maxAvg > 0 ? avg(label) / maxAvg : 0;
+                    const share = summary.classes[label] ? summary.classes[label].weight : 0;
+                    const shareTotal = Object.values(summary.classes).reduce((s, c) => s + c.weight, 0);
+                    const pct = shareTotal > 0 ? share / shareTotal * 100 : 0;
+                    cells += `<div title="${label}: ${pct.toFixed(1)}% of their range" class="aspect-square flex items-center justify-center text-[8px] md:text-[9px] font-mono font-semibold ${norm > 0.45 ? 'text-white' : 'text-slate-500'}" style="background: rgba(16, 185, 129, ${(0.06 + 0.94 * norm).toFixed(3)})">${label.slice(0, 2)}</div>`;
+                }
+            }
+            document.getElementById('rangeGrid').innerHTML = cells;
+
+            const hasReads = opp.actions.some(a => a.action !== 'fold');
+            document.getElementById('rangeWidthLabel').innerText = opp.folded
+                ? 'Folded'
+                : hasReads ? `Narrowed to ≈${summary.widthPct.toFixed(0)}% of hands` : 'Any hand possible';
+            document.getElementById('topHands').innerHTML = hasReads && !opp.folded
+                ? summary.top.map(t => `<span class="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 font-mono">${t.label} <span class="opacity-60">${t.share.toFixed(0)}%</span></span>`).join('')
+                : opp.folded ? 'Out of the hand' : 'No reads yet';
+        }
+
+        function describeReadsForPrompt() {
+            return opponentReads.slice(0, gameState.opponents).map((opp, i) => {
+                const type = PLAYER_TYPES[opp.type].label;
+                if (!opp.actions.length) return `- Opp ${i + 1} (${type}): no actions logged, any hand possible`;
+                const acts = opp.actions.map(a => `${a.street}: ${describeAction(a)}`).join('; ');
+                if (opp.folded) return `- Opp ${i + 1} (${type}): ${acts}. FOLDED, out of the hand`;
+                const s = summarizeRange(opp);
+                const top = s.top.map(t => `${t.label} (${t.share.toFixed(0)}%)`).join(', ');
+                return `- Opp ${i + 1} (${type}): ${acts}. Estimated range ≈${s.widthPct.toFixed(0)}% of possible hands. Most likely: ${top}`;
+            }).join('\n');
+        }
+
+        function runMonteCarloSimulation(trigger) {
+            if (!gameState.hole[0] || !gameState.hole[1]) {
+                alert('Please select both hole cards for your hand before running simulation.');
+                return;
+            }
+            const activeOpps = getActiveOpponents();
+            if (activeOpps.length === 0) {
+                alert('Every opponent has folded, so you win the pot! Click "New Hand" in Opponent Reads to start over.');
+                return;
+            }
+
+            const simBtn = document.getElementById('runSimBtn');
+            simBtn.disabled = true;
+            simBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Running 10,000 Monte Carlo Deals...`;
+
+            // Timeout to allow UI to show spinning state
+            setTimeout(() => {
+                const iterations = 10000;
+                const opponents = activeOpps.length;
+                const readsActive = activeOpps.some(o => o.actions.length > 0);
+
+                // Monte Carlo Loop (opponent hands weighted by Opponent Reads)
+                const { wins, ties, losses } = simulateEquity(iterations, activeOpps.map(o => o.weights));
+
+                // Compute final mathematical stats
+                const winPct = (wins / iterations) * 100;
+                const tiePct = (ties / iterations) * 100;
+                const lossPct = (losses / iterations) * 100;
+
+                // Pot Odds Calculation: Call / (Pot + Call)
+                const pot = gameState.pot;
+                const call = gameState.callAmount;
+                const potOdds = call > 0 ? (call / (pot + call)) * 100 : 0;
+
+                // Expected Value (EV): (Win Equity * Total Pot after Call) - Call
+                const totalEquityFrac = (winPct + (tiePct / 2)) / 100;
+                const expectedValue = call > 0 ? (totalEquityFrac * (pot + call)) - call : (totalEquityFrac * pot);
+
+                // Recommendation Logic
+                let action = "CHECK / CALL";
+                let badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+
+                if (call === 0) {
+                    if (winPct > (100 / (opponents + 1)) + 15) {
+                        action = "BET / RAISE";
+                        badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                    } else {
+                        action = "CHECK";
+                        badgeClass = "bg-blue-500/20 text-blue-400 border-blue-500/30";
+                    }
+                } else {
+                    if (totalEquityFrac * 100 > potOdds + 12) {
+                        action = "RAISE / RE-RAISE";
+                        badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+                    } else if (totalEquityFrac * 100 >= potOdds) {
+                        action = "CALL";
+                        badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+                    } else {
+                        action = "FOLD";
+                        badgeClass = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+                    }
+                }
+
+                // Compare against random hands so the coach can explain what the reads changed
+                const equity = totalEquityFrac * 100;
+                let baseline = equity;
+                if (readsActive) baseline = baselineEquity(opponents);
+                else baselineCache = { key: tableKey(opponents), equity };
+                const prevEquity = gameState.lastSimResults ? gameState.lastSimResults.equity : null;
+
+                gameState.lastSimResults = {
+                    winPct, tiePct, lossPct, potOdds, expectedValue, action,
+                    equity, baseline, readsActive, trigger: trigger || null
+                };
+
+                // Update UI Display
+                document.getElementById('simResultsCard').classList.remove('hidden');
+                document.getElementById('winRateVal').innerText = winPct.toFixed(1) + '%';
+                document.getElementById('tieRateVal').innerText = tiePct.toFixed(1) + '%';
+                document.getElementById('potOddsVal').innerText = potOdds.toFixed(1) + '%';
+                document.getElementById('evVal').innerText = (expectedValue >= 0 ? '+' : '') + '$' + expectedValue.toFixed(2);
+                document.getElementById('evVal').className = `text-xl font-black font-mono ${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+                const badge = document.getElementById('recommendedBadge');
+                badge.innerText = action;
+                badge.className = `px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${badgeClass}`;
+
+                // Update Distribution Bar
+                document.getElementById('winBar').style.width = `${winPct}%`;
+                document.getElementById('tieBar').style.width = `${tiePct}%`;
+                document.getElementById('lossBar').style.width = `${lossPct}%`;
+                document.getElementById('equityBreakdownLabel').innerText = `Win: ${winPct.toFixed(1)}% | Tie: ${tiePct.toFixed(1)}% | Loss: ${lossPct.toFixed(1)}%`;
+
+                // Analysis text
+                document.getElementById('simAnalysisText').innerHTML = `
+                    <b>Mathematical Summary:</b> Your total equity is <b>${(totalEquityFrac*100).toFixed(1)}%</b> compared to required Pot Odds of <b>${potOdds.toFixed(1)}%</b>. 
+                    This results in a long-term expected value of <b class="${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${expectedValue >= 0 ? '+$' : '-$'}${Math.abs(expectedValue).toFixed(2)}</b> per decision.
+                    ${readsActive ? `<br><br><b>Opponent Reads:</b> Against random hands you'd have <b>${baseline.toFixed(1)}%</b>. Based on how your opponents have acted, it's <b>${equity.toFixed(1)}%</b> (${equity >= baseline ? '▲' : '▼'} ${Math.abs(equity - baseline).toFixed(1)} pts).` : ''}
+                `;
+                document.getElementById('simSubtitle').innerText = readsActive
+                    ? `Simulated ${iterations.toLocaleString()} deals, opponent hands weighted by your reads`
+                    : `Simulated ${iterations.toLocaleString()} random card deals`;
+
+                // Live update in the Opponent Reads panel
+                const readsUpdate = document.getElementById('readsUpdate');
+                if (trigger) {
+                    const change = prevEquity === null ? '' : ` (${equity >= prevEquity ? '▲' : '▼'} ${Math.abs(equity - prevEquity).toFixed(1)} pts)`;
+                    readsUpdate.innerHTML = `<b>${trigger}</b> → your equity is now <b>${equity.toFixed(1)}%</b>${change}. Recommended: <b>${action}</b>`;
+                    readsUpdate.classList.remove('hidden');
+                }
+
+                simBtn.disabled = false;
+                simBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (10,000 Hands)`;
+
+                // Auto notify Gemini chatbot with state context
+                appendSystemMessageToChat();
+            }, 50);
+        }
+
+        function appendSystemMessageToChat() {
+            if (!gameState.lastSimResults) return;
+            const res = gameState.lastSimResults;
+            const holeText = gameState.hole.map(c => `${c.r}${SUIT_SYMBOLS[c.s]}`).join(' ');
+            const boardText = gameState.board.filter(Boolean).map(c => `${c.r}${SUIT_SYMBOLS[c.s]}`).join(' ') || 'Pre-flop';
+
+            const msgHtml = `
+                <div class="bg-emerald-950/40 border border-emerald-500/30 p-2.5 rounded-xl text-xs text-emerald-200/90 my-2">
+                    <b class="text-emerald-400"><i class="fa-solid fa-chart-line"></i> Simulation Loaded into AI Context:</b><br>
+                    ${res.trigger ? `After: ${res.trigger}<br>` : ''}
+                    Hand: [ ${holeText} ] | Board: [ ${boardText} ]<br>
+                    Win Equity: ${res.winPct.toFixed(1)}% | EV: $${res.expectedValue.toFixed(2)} | Action: <b>${res.action}</b>
+                    ${res.readsActive ? `<br>Reads: ${res.baseline.toFixed(1)}% vs random hands → ${res.equity.toFixed(1)}% vs their likely hands` : ''}
+                </div>
+            `;
+            const chatBox = document.getElementById('chatMessages');
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendUserMessage(text) {
+            const chatBox = document.getElementById('chatMessages');
+            const msgHtml = `
+                <div class="flex items-start gap-2.5 justify-end">
+                    <div class="bg-emerald-600/20 border border-emerald-500/30 p-3 rounded-2xl rounded-tr-xs text-slate-100 max-w-[85%] text-xs leading-relaxed">
+                        ${escapeHtml(text)}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendBotMessage(text) {
+            const chatBox = document.getElementById('chatMessages');
+            const msgHtml = `
+                <div class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+                        ${formatMarkdown(text)}
+                    </div>
+                </div>
+            `;
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function formatMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/\*(.*?)\*/g, '<i>$1</i>')
+                .replace(/\n/g, '<br>');
+        }
+
+        function sendQuickPrompt(text) {
+            document.getElementById('chatInput').value = text;
+            handleChatSubmit(new Event('submit'));
+        }
+
+        async function handleChatSubmit(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                toggleKeyModal();
+                alert('Please enter your Gemini API key to talk with the AI coach.');
+                return;
+            }
+
+            appendUserMessage(userText);
+            input.value = '';
+
+            // Construct System Prompt and Context
+            const holeText = gameState.hole[0] && gameState.hole[1] 
+                ? `${gameState.hole[0].r}${gameState.hole[0].s} ${gameState.hole[1].r}${gameState.hole[1].s}`
+                : 'None selected';
+            
+            const boardText = gameState.board.filter(Boolean).map(c => `${c.r}${c.s}`).join(' ') || 'Preflop (No board cards)';
+            
+            const simContext = gameState.lastSimResults ? `
+                - Win Equity: ${gameState.lastSimResults.winPct.toFixed(1)}%
+                - Tie Equity: ${gameState.lastSimResults.tiePct.toFixed(1)}%
+                - Required Pot Odds: ${gameState.lastSimResults.potOdds.toFixed(1)}%
+                - Expected Value (EV): $${gameState.lastSimResults.expectedValue.toFixed(2)}
+                - Recommended Action: ${gameState.lastSimResults.action}
+                - Equity vs random hands: ${gameState.lastSimResults.baseline.toFixed(1)}% / vs opponents' likely hands (from reads): ${gameState.lastSimResults.equity.toFixed(1)}%
+            ` : 'Monte Carlo simulation not run yet.';
+
+            const systemPrompt = `You are a world-class, friendly Texas Hold'em Poker Coach assisting a beginner player. 
+            Translate raw math into concise, encouraging strategy explanations. Keep responses beginner-friendly, under 3 paragraphs, using bullet points for key tips.
+
+            Current Table Context:
+            - Player Hole Cards: ${holeText}
+            - Community Board: ${boardText}
+            - Active Opponents: ${gameState.opponents}
+            - Current Pot: $${gameState.pot}
+            - Amount to Call: $${gameState.callAmount}
+            Monte Carlo Engine Stats:
+            ${simContext}
+            Opponent Reads (Bayesian range model built from each opponent's logged actions; the simulation deals opponents hands from these ranges):
+            ${describeReadsForPrompt()}
+            When opponents have logged actions, explain in plain language what their actions suggest they are holding and how that changed the player's equity.`;
+
+            // Show typing indicator
+            const chatBox = document.getElementById('chatMessages');
+            const typingId = 'typing-' + Date.now();
+            chatBox.insertAdjacentHTML('beforeend', `
+                <div id="${typingId}" class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl text-slate-400 text-xs italic">
+                        Gemini is analyzing Monte Carlo equity...
+                    </div>
+                </div>
+            `);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                // Call Gemini REST API
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                
+                chatHistory.push({ role: 'user', parts: [{ text: userText }] });
+
+                const payload = {
+                    contents: [
+                        { role: 'user', parts: [{ text: `System Context:\n${systemPrompt}\n\nUser Question: ${userText}` }] }
+                    ]
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                document.getElementById(typingId)?.remove();
+
+                if (!response.ok) {
+                    throw new Error(`API returned HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                const aiReply = result.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a strategy recommendation. Please try rephrasing.";
+
+                appendBotMessage(aiReply);
+                chatHistory.push({ role: 'model', parts: [{ text: aiReply }] });
+
+            } catch (err) {
+                document.getElementById(typingId)?.remove();
+                appendBotMessage(`⚠️ **Error connecting to Gemini API**: ${err.message}. Please check that your API key is valid.`);
+            }
+        }
+
+        function clearChatHistory() {
+            chatHistory = [];
+            document.getElementById('chatMessages').innerHTML = `
+                <div class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+                        Chat reset! Select cards on the table and ask me any Texas Hold'em question.
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
