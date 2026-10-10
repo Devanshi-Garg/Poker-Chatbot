@@ -1,6 +1,8 @@
 import { createDeck, shuffle } from "./deck.js";
 import { evaluate } from "./handEvaluator.js";
 
+const ITERATIONS = 10000;
+
 export function monteCarlo(myCards, communityCards, numOpponents) {
 
     // Validate inputs
@@ -29,8 +31,8 @@ export function monteCarlo(myCards, communityCards, numOpponents) {
     let wins = 0;
     let ties = 0;
 
-    // Repeat simulation 5000 times
-    for (let i = 0; i < 5000; i++) {
+    // Repeat simulation 10000 times
+    for (let i = 0; i < ITERATIONS; i++) {
 
         // Step 1: Create a fresh deck
         let deck = createDeck();
@@ -82,8 +84,8 @@ export function monteCarlo(myCards, communityCards, numOpponents) {
     }
 
     // Step 8: Calculate probabilities
-    let winProbability = (wins / 5000) * 100;
-    let tieProbability = (ties / 5000) * 100;
+    let winProbability = (wins / ITERATIONS) * 100;
+    let tieProbability = (ties / ITERATIONS) * 100;
 
     return { winProbability, tieProbability };
 }
