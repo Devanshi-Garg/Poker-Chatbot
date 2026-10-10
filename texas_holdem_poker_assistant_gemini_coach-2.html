@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Mind - Texas Hold'em Monte Carlo & Gemini AI Advisor</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pokerGreen: {
+                            800: '#0c3823',
+                            700: '#14532d',
+                            600: '#15803d',
+                            500: '#22c55e',
+                        },
+                        felt: '#0f3d24',
+                        feltBorder: '#3f2d1d',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+      }
+      
+      /* Card Component Styles for Authentic Poker Deck */
+      .poker-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        position: relative;
+        user-select: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        overflow: hidden;
+      }
+      
+      .poker-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      }
+
+      .suit-red {
+        color: #d32f2f;
+      }
+
+      .suit-black {
+        color: #1a1a1a;
+      }
+
+      .pip-inverted {
+        transform: rotate(180deg);
+      }
+
+      /* Custom Felt Texture Background */
+      .poker-felt {
+        background-color: #0d5c34;
+        background-image: 
+          radial-gradient(circle at 50% 50%, rgba(20, 110, 60, 0.8) 0%, rgba(8, 50, 27, 0.95) 100%),
+          radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0);
+        background-size: 100% 100%, 16px 16px;
+      }
+
+      /* Custom scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-900/40">
+                    <i class="fa-solid fa-spade"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-green-200 to-amber-300 bg-clip-text text-transparent">
+                        PokerMind AI
+                    </h1>
+                    <p class="text-xs text-slate-400">Monte Carlo Engine & Gemini Strategy Coach</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons / Key Setup -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleKeyModal()" id="apiKeyStatusBtn" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                    <span id="apiKeyDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span id="apiKeyText">Set Gemini API Key</span>
+                </button>
+                <button onclick="openGuideModal()" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-book-open"></i> Strategy Guide
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+        
+        <!-- Left Panel: Table, Controls & Calculator (7 Cols) -->
+        <section class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Quick Preset Scenarios -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-400"></i> Practice Preset Scenarios
+                    </h2>
+                    <span class="text-xs text-slate-500">Click to auto-fill</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="loadPreset('pocket_aces')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🔥 Pocket Aces (Preflop)
+                    </button>
+                    <button onclick="loadPreset('flush_draw')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🌊 Nut Flush Draw (Flop)
+                    </button>
+                    <button onclick="loadPreset('set_flop')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        💣 Three 7s (Flop)
+                    </button>
+                    <button onclick="loadPreset('bluff_river')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
+                        🎭 Missed Straight (River)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Poker Felt Visual Table -->
+            <div class="poker-felt rounded-3xl p-6 md:p-8 flex flex-col items-center justify-between min-h-[360px] relative overflow-hidden shadow-2xl border border-emerald-900/50">
+                
+                <!-- Community Cards Area -->
+                <div class="text-center w-full z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/60 mb-2 block">
+                        Community Board (Flop / Turn / River)
+                    </span>
+                    <div class="flex justify-center items-center gap-2 md:gap-3 my-2" id="boardCardsContainer">
+                        <!-- 5 Board Card Slots dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- Pot Display Center Badge -->
+                <div class="my-4 bg-slate-950/80 border border-amber-500/40 px-6 py-2 rounded-full backdrop-blur text-center shadow-lg z-10">
+                    <span class="text-xs uppercase text-slate-400 tracking-wider font-semibold">Total Pot</span>
+                    <div class="text-amber-400 font-extrabold text-xl font-mono" id="tablePotDisplay">$150</div>
+                </div>
+
+                <!-- Hole Cards Player Area -->
+                <div class="text-center w-full z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/80 mb-2 block">
+                        Your Hole Cards (Hand)
+                    </span>
+                    <div class="flex justify-center items-center gap-3" id="holeCardsContainer">
+                        <!-- 2 Hole Card Slots dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- Table Clear Button -->
+                <button onclick="clearTableCards()" class="absolute bottom-3 right-3 text-xs text-emerald-200/60 hover:text-emerald-200 bg-slate-950/60 hover:bg-slate-900 px-3 py-1.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-left"></i> Clear Cards
+                </button>
+            </div>
+
+            <!-- Input Parameters & Run Button -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">
+                        Active Opponents (<span id="opponentsVal">2</span>)
+                    </label>
+                    <input type="range" min="1" max="8" value="2" id="opponentsInput" oninput="updateOpponents(this.value)" class="w-full accent-emerald-500 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>1 Heads-up</span>
+                        <span>4 Medium</span>
+                        <span>8 Full Ring</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">Current Pot Size ($)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
+                        <input type="number" id="potInput" value="150" min="0" oninput="updatePot(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-semibold text-slate-400 block mb-1">To Call / Raise Amount ($)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
+                        <input type="number" id="callInput" value="50" min="0" oninput="updateCall(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="sm:col-span-3 mt-2">
+                    <button id="runSimBtn" onclick="runMonteCarloSimulation()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-slate-950 font-extrabold rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition text-base">
+                        <i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (5,000 Hands)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Monte Carlo Results Box -->
+            <div id="simResultsCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hidden transition-all duration-300">
+                <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-emerald-400"></i> Monte Carlo Equity Report
+                        </h3>
+                        <p class="text-xs text-slate-400">Simulated 5,000 random card deals</p>
+                    </div>
+                    <div id="recommendedBadge" class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        RAISE / BET
+                    </div>
+                </div>
+
+                <!-- Core Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Win Equity</span>
+                        <span id="winRateVal" class="text-xl font-black text-emerald-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Tie %</span>
+                        <span id="tieRateVal" class="text-xl font-black text-amber-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Pot Odds</span>
+                        <span id="potOddsVal" class="text-xl font-black text-indigo-400 font-mono">0.0%</span>
+                    </div>
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                        <span class="text-[10px] uppercase font-bold text-slate-500 block">Expected Value (EV)</span>
+                        <span id="evVal" class="text-xl font-black text-emerald-400 font-mono">+$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Visual Bar Breakdown -->
+                <div class="space-y-2">
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span>Outcome Distribution</span>
+                        <span id="equityBreakdownLabel">Win: 0% | Tie: 0% | Loss: 0%</span>
+                    </div>
+                    <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden flex">
+                        <div id="winBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="tieBar" class="bg-amber-400 h-full transition-all duration-500" style="width: 0%"></div>
+                        <div id="lossBar" class="bg-rose-500 h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed" id="simAnalysisText">
+                    Run simulation to view mathematical decision analysis.
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Panel: Gemini AI Chat Advisor (5 Cols) -->
+        <section class="lg:col-span-5 flex flex-col h-[650px] lg:h-auto bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+            
+            <!-- Chat Header -->
+            <div class="bg-slate-800/80 border-b border-slate-700/60 p-3.5 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-100">Gemini Poker Coach</h3>
+                        <p class="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Context-Aware Assistant
+                        </p>
+                    </div>
+                </div>
+                <button onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-700/50 transition">
+                    Clear Chat
+                </button>
+            </div>
+
+            <!-- Chat Message List -->
+            <div id="chatMessages" class="flex-grow p-4 overflow-y-auto space-y-3 font-sans text-sm custom-scrollbar">
+                <!-- Welcome Bot Message -->
+                <div class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+                        Welcome! I'm your Gemini Texas Hold'em AI Coach. Pick your 2 hole cards and community board cards, then run the Monte Carlo simulation. 
+                        <br><br>
+                        Ask me anything! E.g. <i>"Why should I raise here?"</i> or <i>"Explain Pot Odds simply."</i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick AI Prompt Suggestions -->
+            <div class="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex gap-2 overflow-x-auto text-[11px] no-scrollbar">
+                <button onclick="sendQuickPrompt('Explain why the Monte Carlo calculation recommends this action.')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700 transition">
+                    💡 Explain recommendation
+                </button>
+                <button onclick="sendQuickPrompt('What if my opponent re-raises all-in?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700 transition">
+                    ⚔️ What if re-raised?
+                </button>
+                <button onclick="sendQuickPrompt('How does my position at the table affect this play?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700 transition">
+                    📍 Position Advice
+                </button>
+            </div>
+
+            <!-- Chat Input Form -->
+            <form onsubmit="handleChatSubmit(event)" class="p-3 bg-slate-950 border-t border-slate-800 flex gap-2">
+                <input type="text" id="chatInput" placeholder="Ask Gemini strategy question..." class="flex-grow bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 placeholder-slate-500">
+                <button type="submit" id="sendBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shrink-0">
+                    <span>Send</span>
+                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                </button>
+            </form>
+        </section>
+
+    </main>
+
+    <!-- Card Picker Modal -->
+    <div id="cardPickerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-slate-200" id="pickerModalTitle">Select Card</h3>
+                <button onclick="closeCardPicker()" class="text-slate-400 hover:text-slate-100 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Suit Selector Tabs -->
+            <div class="flex gap-2 mb-4 bg-slate-950 p-1 rounded-xl">
+                <button onclick="filterSuit('s')" id="suitBtn-s" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200 transition">♠ Spades</button>
+                <button onclick="filterSuit('h')" id="suitBtn-h" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800 transition">♥ Hearts</button>
+                <button onclick="filterSuit('d')" id="suitBtn-d" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800 transition">♦ Diamonds</button>
+                <button onclick="filterSuit('c')" id="suitBtn-c" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800 transition">♣ Clubs</button>
+            </div>
+
+            <!-- Rank Grid -->
+            <div class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-60 overflow-y-auto p-1 custom-scrollbar" id="cardRankGrid">
+                <!-- Dynamically generated card buttons -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between">
+                <button onclick="removeSelectedCard()" class="px-3 py-1.5 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-lg text-xs font-semibold transition">
+                    Remove Card
+                </button>
+                <button onclick="closeCardPicker()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategy Guide Modal -->
+    <div id="guideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-book-open text-emerald-400"></i> Texas Hold'em Beginner Guide & Hand Rankings
+                </h3>
+                <button onclick="closeGuideModal()" class="text-slate-400 hover:text-slate-100 text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <h4 class="font-bold text-emerald-400 mb-2 uppercase tracking-wide">Poker Hand Rankings (Highest to Lowest)</h4>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300 font-mono">
+                        <li><b>Royal Flush:</b> A, K, Q, J, 10 all of same suit</li>
+                        <li><b>Straight Flush:</b> Five consecutive cards of same suit</li>
+                        <li><b>Four of a Kind:</b> Four cards of equal rank</li>
+                        <li><b>Full House:</b> Three of a kind + a Pair</li>
+                        <li><b>Flush:</b> Any five cards of same suit</li>
+                        <li><b>Straight:</b> Five consecutive cards of any suit</li>
+                        <li><b>Three of a Kind:</b> Three cards of equal rank</li>
+                        <li><b>Two Pair:</b> Two distinct pairs</li>
+                        <li><b>One Pair:</b> Two cards of equal rank</li>
+                        <li><b>High Card:</b> Highest rank card in hand</li>
+                    </ol>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                        <h5 class="font-bold text-amber-400 mb-1">What is Win Equity?</h5>
+                        <p class="text-slate-400">Your calculated percentage chance of having the best 5-card poker hand at showdown out of thousands of random board completions.</p>
+                    </div>
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                        <h5 class="font-bold text-indigo-400 mb-1">What are Pot Odds?</h5>
+                        <p class="text-slate-400">The ratio of the call amount relative to the total pot size. If your Win Equity % exceeds Pot Odds %, making the call is mathematically (+EV) profitable long-term.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button onclick="closeGuideModal()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition">Got It</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Settings Modal -->
+    <div id="keyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-base font-bold text-slate-100 mb-2">Configure Gemini API Key</h3>
+            <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                Enter your Google Gemini API Key below. Your key is stored securely in your browser's localStorage.
+            </p>
+            
+            <div class="mb-4">
+                <label class="text-xs font-bold text-slate-300 block mb-1">Gemini API Key</label>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 mb-4 space-y-1">
+                <p class="font-semibold text-slate-300">How to get a free API Key:</p>
+                <ol class="list-decimal list-inside space-y-0.5 text-slate-400">
+                    <li>Visit <a href="https://aistudio.google.com/" target="_blank" class="text-emerald-400 underline">Google AI Studio</a></li>
+                    <li>Click "Get API Key"</li>
+                    <li>Paste key here and click Save</li>
+                </ol>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleKeyModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition">Cancel</button>
+                <button onclick="saveApiKey()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Application Logic -->
+    <script>
+      // Global App State
+      const gameState = {
+        hole: [null, null],
+        board: [null, null, null, null, null],
+        opponents: 2,
+        pot: 150,
+        callAmount: 50,
+        activeSuitFilter: 's',
+        targetPicker: { type: 'hole', index: 0 },
+        lastSimResults: null
+      };
+
+      const SUITS = ['s', 'h', 'd', 'c'];
+      const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+
+      const SUIT_SYMBOLS = {
+        s: '♠',
+        h: '♥',
+        d: '♦',
+        c: '♣'
+      };
+
+      const SUIT_COLORS = {
+        s: 'suit-black',
+        h: 'suit-red',
+        d: 'suit-red',
+        c: 'suit-black'
+      };
+
+      // Toast Notification Function
+      function showToast(message, isError = false) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-5 left-1/2 transform -translate-x-1/2 px-4 py-2.5 rounded-xl text-xs font-bold text-white z-50 transition-all duration-300 shadow-xl border ${isError ? 'bg-rose-900/90 border-rose-500' : 'bg-slate-800/90 border-emerald-500 text-emerald-300'}`;
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
+
+      // Render Realistic Card DOM Content
+      function renderCardContent(rank, suit, isSmall = false) {
+        const symbol = SUIT_SYMBOLS[suit] || '';
+        const colorClass = SUIT_COLORS[suit] || 'suit-black';
+        const displayRank = rank === 'T' ? '10' : rank;
+        
+        if (isSmall) {
+          if (['J', 'Q', 'K'].includes(rank)) {
+            return `
+              <div class="flex flex-col justify-between h-full p-0.5 ${colorClass} font-bold select-none leading-none">
+                <div class="text-[10px] flex items-center space-x-0.5">
+                  <span>${displayRank}</span>
+                  <span class="text-[8px]">${symbol}</span>
+                </div>
+                <div class="my-auto text-center font-black text-sm leading-none flex flex-col items-center justify-center">
+                  <span>${rank}</span>
+                  <span class="text-[9px] -mt-0.5">${symbol}</span>
+                </div>
+                <div class="text-[10px] flex items-center space-x-0.5 self-end transform rotate-180">
+                  <span>${displayRank}</span>
+                  <span class="text-[8px]">${symbol}</span>
+                </div>
+              </div>
+            `;
+          }
+
+          return `
+            <div class="flex flex-col justify-between h-full p-1 ${colorClass} font-bold select-none leading-none">
+              <div class="text-xs flex items-center space-x-0.5">
+                <span>${displayRank}</span>
+                <span class="text-[10px]">${symbol}</span>
+              </div>
+              <div class="text-center text-base my-auto">${symbol}</div>
+              <div class="text-xs flex items-center space-x-0.5 self-end transform rotate-180">
+                <span>${displayRank}</span>
+                <span class="text-[10px]">${symbol}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        let centerContent = '';
+
+        if (rank === 'A') {
+          centerContent = `
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-5xl sm:text-6xl ${colorClass} drop-shadow-sm select-none">${symbol}</span>
+            </div>
+          `;
+        } else if (['J', 'Q', 'K'].includes(rank)) {
+          centerContent = `
+            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none ${colorClass}">
+              <span class="text-3xl sm:text-4xl font-extrabold tracking-tighter leading-none">${rank}</span>
+              <span class="text-lg sm:text-xl -mt-1 opacity-90">${symbol}</span>
+            </div>
+          `;
+        } else {
+          const pipsCount = rank === 'T' ? 10 : parseInt(rank, 10);
+          const pipPositions = {
+            2: [{ x: 50, y: 20, inv: false }, { x: 50, y: 80, inv: true }],
+            3: [{ x: 50, y: 20, inv: false }, { x: 50, y: 50, inv: false }, { x: 50, y: 80, inv: true }],
+            4: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
+            5: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
+            6: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
+            7: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 35, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
+            8: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 35, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 50, y: 65, inv: true }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
+            9: [{ x: 30, y: 18, inv: false }, { x: 70, y: 18, inv: false }, { x: 30, y: 39, inv: false }, { x: 70, y: 39, inv: false }, { x: 50, y: 50, inv: false }, { x: 30, y: 61, inv: true }, { x: 70, y: 61, inv: true }, { x: 30, y: 82, inv: true }, { x: 70, y: 82, inv: true }],
+            10: [{ x: 30, y: 18, inv: false }, { x: 70, y: 18, inv: false }, { x: 50, y: 30, inv: false }, { x: 30, y: 40, inv: false }, { x: 70, y: 40, inv: false }, { x: 30, y: 60, inv: true }, { x: 70, y: 60, inv: true }, { x: 50, y: 70, inv: true }, { x: 30, y: 82, inv: true }, { x: 70, y: 82, inv: true }]
+          };
+
+          const pips = pipPositions[pipsCount] || [];
+          centerContent = `
+            <div class="absolute inset-[15%] pointer-events-none">
+              ${pips.map(p => `
+                <span class="absolute text-xs sm:text-sm ${colorClass} ${p.inv ? 'pip-inverted' : ''}" 
+                      style="left: ${p.x}%; top: ${p.y}%; transform: translate(-50%, -50%) ${p.inv ? 'rotate(180deg)' : ''};">
+                  ${symbol}
+                </span>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="relative w-full h-full p-1.5 flex flex-col justify-between ${colorClass} select-none">
+            <div class="flex flex-col items-center leading-tight font-bold z-10 w-4">
+              <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
+              <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
+            </div>
+            ${centerContent}
+            <div class="flex flex-col items-center leading-tight font-bold z-10 w-4 self-end transform rotate-180">
+              <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
+              <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      function createCardDOM(cardObj, onClick = null, isSmall = false, placeholderText = '+ Add') {
+        if (!cardObj) {
+          const emptySlot = document.createElement('div');
+          emptySlot.className = `poker-card border-2 border-dashed border-emerald-500/40 bg-slate-900/80 rounded-xl flex flex-col items-center justify-center text-emerald-400/60 cursor-pointer hover:border-amber-400 hover:text-amber-300 transition ${isSmall ? 'w-12 h-16' : 'w-16 h-24 sm:w-20 sm:h-28'}`;
+          emptySlot.innerHTML = `<span class="text-xs font-semibold">${placeholderText}</span>`;
+          if (onClick) emptySlot.onclick = onClick;
+          return emptySlot;
+        }
+
+        const cardEl = document.createElement('div');
+        cardEl.className = `poker-card cursor-pointer shadow-xl ${isSmall ? 'w-12 h-16' : 'w-16 h-24 sm:w-20 sm:h-28'}`;
+        cardEl.innerHTML = renderCardContent(cardObj.r, cardObj.s, isSmall);
+        if (onClick) cardEl.onclick = onClick;
+        return cardEl;
+      }
+
+      function renderTableCards() {
+        const holeContainer = document.getElementById('holeCardsContainer');
+        holeContainer.innerHTML = '';
+        gameState.hole.forEach((card, idx) => {
+          const dom = createCardDOM(card, () => openCardPicker('hole', idx), false, `Hole ${idx+1}`);
+          holeContainer.appendChild(dom);
+        });
+
+        const boardContainer = document.getElementById('boardCardsContainer');
+        boardContainer.innerHTML = '';
+        const labels = ['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'];
+        gameState.board.forEach((card, idx) => {
+          const dom = createCardDOM(card, () => openCardPicker('board', idx), false, labels[idx]);
+          boardContainer.appendChild(dom);
+        });
+      }
+
+      function openCardPicker(type, index) {
+        gameState.targetPicker = { type, index };
+        const modal = document.getElementById('cardPickerModal');
+        const title = document.getElementById('pickerModalTitle');
+        title.innerText = type === 'hole' ? `Select Hole Card ${index + 1}` : `Select Board Card (${['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'][index]})`;
+        
+        filterSuit(gameState.activeSuitFilter);
+        modal.classList.remove('hidden');
+      }
+
+      function closeCardPicker() {
+        document.getElementById('cardPickerModal').classList.add('hidden');
+      }
+
+      function filterSuit(suit) {
+        gameState.activeSuitFilter = suit;
+        ['s', 'h', 'd', 'c'].forEach(s => {
+          const btn = document.getElementById(`suitBtn-${s}`);
+          if (s === suit) {
+            btn.classList.add('bg-slate-800', 'border', 'border-slate-600');
+          } else {
+            btn.classList.remove('bg-slate-800', 'border', 'border-slate-600');
+          }
+        });
+
+        const rankGrid = document.getElementById('cardRankGrid');
+        rankGrid.innerHTML = '';
+
+        const takenCards = [...gameState.hole, ...gameState.board].filter(Boolean);
+
+        RANKS.forEach(rank => {
+          const isTaken = takenCards.some(c => c.r === rank && c.s === suit);
+          const btn = document.createElement('button');
+          btn.className = `p-2 rounded-xl border flex flex-col items-center justify-center transition ${isTaken ? 'opacity-30 cursor-not-allowed border-slate-800 bg-slate-950' : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-100 hover:border-amber-400'}`;
+          btn.disabled = isTaken;
+          
+          const symbol = SUIT_SYMBOLS[suit];
+          const colorClass = SUIT_COLORS[suit];
+          const displayRank = rank === 'T' ? '10' : rank;
+
+          btn.innerHTML = `
+            <span class="text-sm font-bold ${colorClass}">${displayRank}</span>
+            <span class="text-xs ${colorClass}">${symbol}</span>
+          `;
+
+          if (!isTaken) {
+            btn.onclick = () => selectCard(rank, suit);
+          }
+
+          rankGrid.appendChild(btn);
+        });
+      }
+
+      function selectCard(rank, suit) {
+        const { type, index } = gameState.targetPicker;
+        if (type === 'hole') {
+          gameState.hole[index] = { r: rank, s: suit };
+        } else if (type === 'board') {
+          gameState.board[index] = { r: rank, s: suit };
+        }
+
+        renderTableCards();
+        closeCardPicker();
+      }
+
+      function removeSelectedCard() {
+        const { type, index } = gameState.targetPicker;
+        if (type === 'hole') {
+          gameState.hole[index] = null;
+        } else if (type === 'board') {
+          gameState.board[index] = null;
+        }
+
+        renderTableCards();
+        closeCardPicker();
+      }
+
+      function loadPreset(presetKey) {
+        if (presetKey === 'pocket_aces') {
+          gameState.hole = [{ r: 'A', s: 's' }, { r: 'A', s: 'h' }];
+          gameState.board = [null, null, null, null, null];
+          gameState.pot = 100;
+          gameState.callAmount = 30;
+          showToast('Loaded: Pocket Aces (Pre-flop)');
+        } else if (presetKey === 'flush_draw') {
+          gameState.hole = [{ r: 'A', s: 's' }, { r: 'K', s: 's' }];
+          gameState.board = [{ r: 'T', s: 's' }, { r: '4', s: 's' }, { r: '2', s: 'h' }, null, null];
+          gameState.pot = 200;
+          gameState.callAmount = 60;
+          showToast('Loaded: Nut Flush Draw (Flop)');
+        } else if (presetKey === 'set_flop') {
+          gameState.hole = [{ r: '7', s: 'd' }, { r: '7', s: 'c' }];
+          gameState.board = [{ r: '7', s: 's' }, { r: 'J', s: 'h' }, { r: '3', s: 'd' }, null, null];
+          gameState.pot = 180;
+          gameState.callAmount = 50;
+          showToast('Loaded: Three 7s Set (Flop)');
+        } else if (presetKey === 'bluff_river') {
+          gameState.hole = [{ r: 'Q', s: 's' }, { r: 'J', s: 's' }];
+          gameState.board = [{ r: 'K', s: 'd' }, { r: 'T', s: 'c' }, { r: '4', s: 'h' }, { r: '2', s: 's' }, { r: '7', s: 'd' }];
+          gameState.pot = 350;
+          gameState.callAmount = 120;
+          showToast('Loaded: Missed Straight (River)');
+        }
+
+        document.getElementById('potInput').value = gameState.pot;
+        document.getElementById('callInput').value = gameState.callAmount;
+        document.getElementById('tablePotDisplay').innerText = `$${gameState.pot}`;
+        renderTableCards();
+      }
+
+      function clearTableCards() {
+        gameState.hole = [null, null];
+        gameState.board = [null, null, null, null, null];
+        renderTableCards();
+        document.getElementById('simResultsCard').classList.add('hidden');
+        showToast('Table cards cleared');
+      }
+
+      function updateOpponents(val) {
+        gameState.opponents = parseInt(val, 10);
+        document.getElementById('opponentsVal').innerText = val;
+      }
+
+      function updatePot(val) {
+        gameState.pot = Math.max(0, parseFloat(val) || 0);
+        document.getElementById('tablePotDisplay').innerText = `$${gameState.pot}`;
+      }
+
+      function updateCall(val) {
+        gameState.callAmount = Math.max(0, parseFloat(val) || 0);
+      }
+
+      // Evaluates best 5-card combination score out of 7 cards
+      function evaluate7CardHand(cards) {
+        const parsed = cards.map(c => ({
+          r: c.r === 'T' ? 10 : c.r === 'J' ? 11 : c.r === 'Q' ? 12 : c.r === 'K' ? 13 : c.r === 'A' ? 14 : parseInt(c.r, 10),
+          s: c.s
+        }));
+
+        let bestScore = -1;
+        const len = parsed.length;
+
+        for (let a = 0; a < len - 4; a++) {
+          for (let b = a + 1; b < len - 3; b++) {
+            for (let c = b + 1; c < len - 2; c++) {
+              for (let d = c + 1; d < len - 1; d++) {
+                for (let e = d + 1; e < len; e++) {
+                  const combo = [parsed[a], parsed[b], parsed[c], parsed[d], parsed[e]];
+                  const score = score5CardHand(combo);
+                  if (score > bestScore) bestScore = score;
+                }
+              }
+            }
+          }
+        }
+        return bestScore;
+      }
+
+      // Unique numeric score generator for 5-card combinations
+      function score5CardHand(hand) {
+        hand.sort((a, b) => b.r - a.r);
+        const ranks = hand.map(c => c.r);
+        const suits = hand.map(c => c.s);
+
+        const isFlush = suits.every(s => s === suits[0]);
+        
+        let isStraight = false;
+        let straightHigh = 0;
+        if (ranks[0] - ranks[4] === 4 && new Set(ranks).size === 5) {
+          isStraight = true;
+          straightHigh = ranks[0];
+        } else if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) {
+          isStraight = true;
+          straightHigh = 5;
+        }
+
+        const counts = {};
+        ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+        const countPairs = Object.entries(counts).map(([r, count]) => ({ r: Number(r), count }));
+        countPairs.sort((a, b) => b.count - a.count || b.r - a.r);
+
+        let category = 0;
+        if (isStraight && isFlush) category = 8; // Straight Flush / Royal Flush
+        else if (countPairs[0].count === 4) category = 7; // Four of a Kind
+        else if (countPairs[0].count === 3 && countPairs[1].count === 2) category = 6; // Full House
+        else if (isFlush) category = 5; // Flush
+        else if (isStraight) category = 4; // Straight
+        else if (countPairs[0].count === 3) category = 3; // Three of a Kind
+        else if (countPairs[0].count === 2 && countPairs[1].count === 2) category = 2; // Two Pair
+        else if (countPairs[0].count === 2) category = 1; // One Pair
+        else category = 0; // High Card
+
+        let score = category * 1000000;
+        if (category === 8 || category === 4) {
+          score += straightHigh;
+        } else {
+          let tiebreaker = 0;
+          countPairs.forEach((cp, idx) => {
+            tiebreaker += cp.r * Math.pow(15, 4 - idx);
+          });
+          score += tiebreaker;
+        }
+        return score;
+      }
+
+      function runMonteCarloSimulation() {
+        if (!gameState.hole[0] || !gameState.hole[1]) {
+          showToast('Please select both hole cards for your hand before running simulation.', true);
+          return;
+        }
+
+        const simBtn = document.getElementById('runSimBtn');
+        simBtn.disabled = true;
+        simBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Simulating 5,000 Hands...`;
+
+        setTimeout(() => {
+          const knownCards = [...gameState.hole, ...gameState.board].filter(Boolean);
+          const deck = [];
+          RANKS.forEach(r => {
+            SUITS.forEach(s => {
+              if (!knownCards.some(c => c.r === r && c.s === s)) {
+                deck.push({ r, s });
+              }
+            });
+          });
+
+          const iterations = 5000;
+          let wins = 0;
+          let ties = 0;
+          let losses = 0;
+
+          const activeBoardCards = gameState.board.filter(Boolean);
+          const missingBoardCount = 5 - activeBoardCards.length;
+          const opponents = gameState.opponents;
+
+          for (let i = 0; i < iterations; i++) {
+            const shuffled = deck.slice();
+            for (let j = shuffled.length - 1; j > 0; j--) {
+              const k = Math.floor(Math.random() * (j + 1));
+              [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
+            }
+
+            let simIndex = 0;
+            const simBoard = [...activeBoardCards];
+            for (let b = 0; b < missingBoardCount; b++) {
+              simBoard.push(shuffled[simIndex++]);
+            }
+
+            const playerScore = evaluate7CardHand([...gameState.hole, ...simBoard]);
+
+            let bestOpponentScore = -1;
+            for (let opp = 0; opp < opponents; opp++) {
+              const oppHole = [shuffled[simIndex++], shuffled[simIndex++]];
+              const oppScore = evaluate7CardHand([...oppHole, ...simBoard]);
+              if (oppScore > bestOpponentScore) {
+                bestOpponentScore = oppScore;
+              }
+            }
+
+            if (playerScore > bestOpponentScore) wins++;
+            else if (playerScore === bestOpponentScore) ties++;
+            else losses++;
+          }
+
+          const winPct = (wins / iterations) * 100;
+          const tiePct = (ties / iterations) * 100;
+          const lossPct = (losses / iterations) * 100;
+
+          const pot = gameState.pot;
+          const call = gameState.callAmount;
+          const potOdds = call > 0 ? (call / (pot + call)) * 100 : 0;
+
+          const totalEquityFrac = (winPct + (tiePct / 2)) / 100;
+          const expectedValue = call > 0 ? (totalEquityFrac * (pot + call)) - call : (totalEquityFrac * pot);
+
+          let action = "CHECK / CALL";
+          let badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+
+          if (call === 0) {
+            if (winPct > (100 / (opponents + 1)) + 15) {
+              action = "BET / RAISE";
+              badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+            } else {
+              action = "CHECK";
+              badgeClass = "bg-blue-500/20 text-blue-400 border-blue-500/30";
+            }
+          } else {
+            if (totalEquityFrac * 100 > potOdds + 12) {
+              action = "RAISE / RE-RAISE";
+              badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+            } else if (totalEquityFrac * 100 >= potOdds) {
+              action = "CALL";
+              badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+            } else {
+              action = "FOLD";
+              badgeClass = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+            }
+          }
+
+          gameState.lastSimResults = {
+            winPct, tiePct, lossPct, potOdds, expectedValue, action
+          };
+
+          document.getElementById('simResultsCard').classList.remove('hidden');
+          document.getElementById('winRateVal').innerText = winPct.toFixed(1) + '%';
+          document.getElementById('tieRateVal').innerText = tiePct.toFixed(1) + '%';
+          document.getElementById('potOddsVal').innerText = potOdds.toFixed(1) + '%';
+          document.getElementById('evVal').innerText = (expectedValue >= 0 ? '+' : '') + '$' + expectedValue.toFixed(2);
+          document.getElementById('evVal').className = `text-xl font-black font-mono ${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+          const badge = document.getElementById('recommendedBadge');
+          badge.innerText = action;
+          badge.className = `px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${badgeClass}`;
+
+          document.getElementById('winBar').style.width = `${winPct}%`;
+          document.getElementById('tieBar').style.width = `${tiePct}%`;
+          document.getElementById('lossBar').style.width = `${lossPct}%`;
+          document.getElementById('equityBreakdownLabel').innerText = `Win: ${winPct.toFixed(1)}% | Tie: ${tiePct.toFixed(1)}% | Loss: ${lossPct.toFixed(1)}%`;
+
+          document.getElementById('simAnalysisText').innerHTML = `
+            <b>Mathematical Summary:</b> Your total equity is <b>${(totalEquityFrac*100).toFixed(1)}%</b> compared to required Pot Odds of <b>${potOdds.toFixed(1)}%</b>. 
+            This results in a long-term expected value of <b class="${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${expectedValue >= 0 ? '+$' : '-$'}${Math.abs(expectedValue).toFixed(2)}</b> per call.
+          `;
+
+          simBtn.disabled = false;
+          simBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (5,000 Hands)`;
+
+          appendSystemMessageToChat();
+        }, 50);
+      }
+
+      function appendSystemMessageToChat() {
+        if (!gameState.lastSimResults) return;
+        const res = gameState.lastSimResults;
+        const holeText = gameState.hole.map(c => `${c.r === 'T' ? '10' : c.r}${SUIT_SYMBOLS[c.s]}`).join(' ');
+        const boardText = gameState.board.filter(Boolean).map(c => `${c.r === 'T' ? '10' : c.r}${SUIT_SYMBOLS[c.s]}`).join(' ') || 'Pre-flop';
+
+        const msgHtml = `
+          <div class="bg-emerald-950/40 border border-emerald-500/30 p-2.5 rounded-xl text-xs text-emerald-200/90 my-2">
+            <b class="text-emerald-400"><i class="fa-solid fa-chart-line"></i> Simulation Sync:</b><br>
+            Hand: [ ${holeText} ] | Board: [ ${boardText} ]<br>
+            Win Equity: ${res.winPct.toFixed(1)}% | EV: $${res.expectedValue.toFixed(2)} | Play: <b>${res.action}</b>
+          </div>
+        `;
+        const chatBox = document.getElementById('chatMessages');
+        chatBox.insertAdjacentHTML('beforeend', msgHtml);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function appendUserMessage(text) {
+        const chatBox = document.getElementById('chatMessages');
+        const msgHtml = `
+          <div class="flex items-start gap-2.5 justify-end">
+            <div class="bg-emerald-600/20 border border-emerald-500/30 p-3 rounded-2xl rounded-tr-xs text-slate-100 max-w-[85%] text-xs leading-relaxed">
+              ${escapeHtml(text)}
+            </div>
+          </div>
+        `;
+        chatBox.insertAdjacentHTML('beforeend', msgHtml);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function appendBotMessage(text) {
+        const chatBox = document.getElementById('chatMessages');
+        const msgHtml = `
+          <div class="flex items-start gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+              ${formatMarkdown(text)}
+            </div>
+          </div>
+        `;
+        chatBox.insertAdjacentHTML('beforeend', msgHtml);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function escapeHtml(str) {
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      function formatMarkdown(text) {
+        return text
+          .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+          .replace(/\*(.*?)\*/g, '<i>$1</i>')
+          .replace(/\n/g, '<br>');
+      }
+
+      function sendQuickPrompt(text) {
+        document.getElementById('chatInput').value = text;
+        handleChatSubmit(new Event('submit'));
+      }
+
+      async function handleChatSubmit(e) {
+        e.preventDefault();
+        const input = document.getElementById('chatInput');
+        const userText = input.value.trim();
+        if (!userText) return;
+
+        const apiKey = localStorage.getItem('gemini_api_key');
+        if (!apiKey) {
+          toggleKeyModal();
+          showToast('Please enter your Gemini API key to consult the AI coach.', true);
+          return;
+        }
+
+        appendUserMessage(userText);
+        input.value = '';
+
+        const holeText = gameState.hole[0] && gameState.hole[1] 
+          ? `${gameState.hole[0].r}${gameState.hole[0].s} ${gameState.hole[1].r}${gameState.hole[1].s}`
+          : 'None selected';
+        
+        const boardText = gameState.board.filter(Boolean).map(c => `${c.r}${c.s}`).join(' ') || 'Preflop';
+        
+        const simContext = gameState.lastSimResults ? `
+          - Win Equity: ${gameState.lastSimResults.winPct.toFixed(1)}%
+          - Tie Equity: ${gameState.lastSimResults.tiePct.toFixed(1)}%
+          - Required Pot Odds: ${gameState.lastSimResults.potOdds.toFixed(1)}%
+          - Expected Value (EV): $${gameState.lastSimResults.expectedValue.toFixed(2)}
+          - Recommended Math Action: ${gameState.lastSimResults.action}
+        ` : 'Monte Carlo simulation not run yet.';
+
+        const systemPrompt = `You are a friendly, encouraging expert Texas Hold'em Poker Coach helping a beginner player. 
+Translate raw Monte Carlo calculations into clear, practical strategy advice. Keep responses beginner-friendly, structured, concise, and under 3 short paragraphs.
+
+Current Poker Table State:
+- Player Hole Cards: ${holeText}
+- Community Board: ${boardText}
+- Active Opponents: ${gameState.opponents}
+- Total Pot: $${gameState.pot}
+- Cost to Call: $${gameState.callAmount}
+Monte Carlo Simulation Results:
+${simContext}`;
+
+        const chatBox = document.getElementById('chatMessages');
+        const typingId = 'typing-' + Date.now();
+        chatBox.insertAdjacentHTML('beforeend', `
+          <div id="${typingId}" class="flex items-start gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl text-slate-400 text-xs italic">
+              Gemini is evaluating strategic line...
+            </div>
+          </div>
+        `);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+          
+          const payload = {
+            contents: [
+              { role: 'user', parts: [{ text: `System Context:\n${systemPrompt}\n\nUser Query: ${userText}` }] }
+            ]
+          };
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          document.getElementById(typingId)?.remove();
+
+          if (!response.ok) {
+            throw new Error(`API error HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          const aiReply = result.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a strategy response. Please try asking again.";
+
+          appendBotMessage(aiReply);
+
+        } catch (err) {
+          document.getElementById(typingId)?.remove();
+          appendBotMessage(`⚠️ **Error connecting to Gemini API**: ${err.message}. Please verify your API key.`);
+        }
+      }
+
+      function clearChatHistory() {
+        document.getElementById('chatMessages').innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
+              Chat reset! Select table cards and ask me any Texas Hold'em question.
+            </div>
+          </div>
+        `;
+      }
+
+      function toggleKeyModal() {
+        const modal = document.getElementById('keyModal');
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) {
+          const storedKey = localStorage.getItem('gemini_api_key') || '';
+          document.getElementById('apiKeyInput').value = storedKey;
+        }
+      }
+
+      function saveApiKey() {
+        const key = document.getElementById('apiKeyInput').value.trim();
+        if (key) {
+          localStorage.setItem('gemini_api_key', key);
+          updateApiKeyStatus();
+          toggleKeyModal();
+          showToast('Gemini API Key saved successfully');
+        } else {
+          localStorage.removeItem('gemini_api_key');
+          updateApiKeyStatus();
+          toggleKeyModal();
+          showToast('Gemini API Key removed');
+        }
+      }
+
+      function updateApiKeyStatus() {
+        const key = localStorage.getItem('gemini_api_key');
+        const dot = document.getElementById('apiKeyDot');
+        const text = document.getElementById('apiKeyText');
+
+        if (key) {
+          dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+          text.innerText = "Gemini Connected";
+        } else {
+          dot.className = "w-2 h-2 rounded-full bg-amber-500";
+          text.innerText = "Set Gemini API Key";
+        }
+      }
+
+      function openGuideModal() {
+        document.getElementById('guideModal').classList.remove('hidden');
+      }
+
+      function closeGuideModal() {
+        document.getElementById('guideModal').classList.add('hidden');
+      }
+
+      window.onload = function() {
+        renderTableCards();
+        updateApiKeyStatus();
+      };
+    </script>
+</body>
+</html>
