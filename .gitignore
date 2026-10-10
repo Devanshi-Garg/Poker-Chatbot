@@ -1,0 +1,16 @@
+# IntelliJ project settings
+.idea/
+
+# API keys and environment variables
+.env
+.env.*
+
+# Keep the example configuration
+!.env.example
+
+# Node.js dependencies
+node_modules/
+
+# Operating system files
+.DS_Store
+Thumbs.db
