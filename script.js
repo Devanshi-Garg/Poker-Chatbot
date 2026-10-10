@@ -1,4 +1,5 @@
 import { monteCarlo } from "./monteCarlo.js";
+import { renderCardContent } from "./cards.js";
 // ==========================================
 // CONSTANTS & GAME STATE
 // ==========================================
@@ -188,74 +189,6 @@ function loadPreset(key) {
     renderTable();
     runMonteCarloSimulation();
 }
-        const SUIT_COLORS = { s: 'suit-black', h: 'suit-red', d: 'suit-red', c: 'suit-black' };
-
-function renderCardContent(rank, suit, isSmall = false) {
-  const symbol = SUIT_SYMBOLS[suit] || '';
-  const colorClass = SUIT_COLORS[suit] || 'suit-black';
-  const displayRank = rank === 'T' ? '10' : rank;
-  
-  if (rank === 'A') {
-    return `
-      <div class="relative w-full h-full p-1.5 flex flex-col justify-between ${colorClass} select-none">
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-        <div class="absolute inset-0 flex items-center justify-center">
-          <span class="text-4xl sm:text-5xl ${colorClass} drop-shadow-sm select-none">${symbol}</span>
-        </div>
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4 self-end transform rotate-180">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-      </div>`;
-  } else if (['J', 'Q', 'K'].includes(rank)) {
-    return `
-      <div class="relative w-full h-full p-1.5 flex flex-col justify-between ${colorClass} select-none">
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none ${colorClass}">
-          <span class="text-2xl sm:text-3xl font-extrabold tracking-tighter leading-none">${rank}</span>
-          <span class="text-base sm:text-lg -mt-1 opacity-90">${symbol}</span>
-        </div>
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4 self-end transform rotate-180">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-      </div>`;
-  } else {
-    const pipsCount = rank === 'T' ? 10 : parseInt(rank, 10);
-    const pipPositions = {
-      2: [{ x: 50, y: 20, inv: false }, { x: 50, y: 80, inv: true }],
-      3: [{ x: 50, y: 20, inv: false }, { x: 50, y: 50, inv: false }, { x: 50, y: 80, inv: true }],
-      4: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
-      5: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
-      6: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
-      7: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 35, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
-      8: [{ x: 30, y: 20, inv: false }, { x: 70, y: 20, inv: false }, { x: 50, y: 35, inv: false }, { x: 30, y: 50, inv: false }, { x: 70, y: 50, inv: false }, { x: 50, y: 65, inv: true }, { x: 30, y: 80, inv: true }, { x: 70, y: 80, inv: true }],
-      9: [{ x: 30, y: 18, inv: false }, { x: 70, y: 18, inv: false }, { x: 30, y: 39, inv: false }, { x: 70, y: 39, inv: false }, { x: 50, y: 50, inv: false }, { x: 30, y: 61, inv: true }, { x: 70, y: 61, inv: true }, { x: 30, y: 82, inv: true }, { x: 70, y: 82, inv: true }],
-      10: [{ x: 30, y: 18, inv: false }, { x: 70, y: 18, inv: false }, { x: 50, y: 30, inv: false }, { x: 30, y: 40, inv: false }, { x: 70, y: 40, inv: false }, { x: 30, y: 60, inv: true }, { x: 70, y: 60, inv: true }, { x: 50, y: 70, inv: true }, { x: 30, y: 82, inv: true }, { x: 70, y: 82, inv: true }]
-    };
-    const pips = pipPositions[pipsCount] || [];
-    return `
-      <div class="relative w-full h-full p-1.5 flex flex-col justify-between ${colorClass} select-none">
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-        <div class="absolute inset-[15%] pointer-events-none">
-          ${pips.map(p => `<span class="absolute text-xs ${colorClass}" style="left: ${p.x}\%; top:${p.y}%; transform: translate(-50%, -50%) ${p.inv ? 'rotate(180deg)' : ''};">${symbol}</span>`).join('')}
-        </div>
-        <div class="flex flex-col items-center leading-tight font-bold z-10 w-4 self-end transform rotate-180">
-          <span class="text-xs sm:text-sm tracking-tighter">${displayRank}</span>
-          <span class="text-xs sm:text-sm -mt-1">${symbol}</span>
-        </div>
-      </div>`;
-  }
-}
 
 function createCardElement(card, placeholderText) {
     if (!card) {
@@ -277,7 +210,7 @@ function renderTable() {
         const el = document.getElementById(`hole-${i}`);
         const card = gameState.hole[i];
         if (card) {
-            el.className = "poker-card w-16 h-24 md:w-20 md:h-28 cursor-pointer shadow-xl border-2 border-emerald-400";
+            el.className = "poker-card w-16 h-24 md:w-20 md:h-28 cursor-pointer";
             el.innerHTML = renderCardContent(card.r, card.s);
         } else {
             el.className = "poker-card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl";
@@ -291,7 +224,7 @@ function renderTable() {
         const el = document.getElementById(`board-${i}`);
         const card = gameState.board[i];
         if (card) {
-            el.className = "poker-card w-14 h-20 md:w-16 md:h-24 cursor-pointer shadow-md border-2 border-emerald-400";
+            el.className = "poker-card w-14 h-20 md:w-16 md:h-24 cursor-pointer ";
             el.innerHTML = renderCardContent(card.r, card.s);
         } else {
             el.className = "poker-card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400";

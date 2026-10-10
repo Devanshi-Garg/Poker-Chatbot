@@ -73,6 +73,10 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #4b5563;
         }
+       /* Playing cards */
+   .poker-card { transition: transform 0.15s ease; user-select: none; }
+   .poker-card:hover { transform: translateY(-4px); }
+   .poker-card img, .poker-card svg { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35)); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-x-hidden">
