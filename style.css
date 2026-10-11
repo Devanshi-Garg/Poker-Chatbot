@@ -132,14 +132,17 @@ body {
 }
 .intro p { margin-top: 10px; max-width: 52ch; color: var(--muted); font-size: 19px; }
 
+/* headline over the situation and the table; the coach takes the whole right side */
 .workspace {
-    margin-top: 20px;
     display: grid;
     grid-template-columns: 270px minmax(0, 1fr) 340px;
-    gap: 24px;
+    gap: 20px 24px;
     align-items: start;
-    scroll-margin-top: 76px;              /* when scrolled to, it lands just under the header */
 }
+.intro { grid-column: 1 / 3; grid-row: 1; }
+.panel { grid-column: 1; grid-row: 2; }
+.table-area { grid-column: 2; grid-row: 2; min-height: calc(100vh - 90px); }   /* tall enough for Calculate to scroll the headline away */
+.coach { grid-column: 3; grid-row: 1 / 3; }
 
 /* ---------- left panel: your situation + the answer ---------- */
 .panel {
@@ -181,9 +184,9 @@ body {
 /* script.js rewrites this button's inside text after each run,
    so the visible label comes from CSS and stays the same */
 #runSimBtn { width: 100%; padding: 15px 18px; font-size: 0; }
-#runSimBtn::after { content: "Deal 10,000 hands"; font-size: 17px; }
+#runSimBtn::after { content: "Calculate"; font-size: 17px; }
 #runSimBtn:disabled { opacity: 0.75; cursor: progress; }
-#runSimBtn:disabled::after { content: "Dealing\2026"; }
+#runSimBtn:disabled::after { content: "Calculating\2026"; }
 
 /* the answer, right under the button */
 .results { border-top: 1px solid var(--line); padding-top: 12px; }
@@ -437,7 +440,7 @@ body {
 .coach {
     position: sticky;
     top: 76px;                            /* just under the pinned header */
-    height: calc(100vh - 92px);
+    height: calc(100vh - 104px);          /* the whole coach, typing box included, fits on screen */
     min-height: 460px;
     background: var(--surface);
     border: 1px solid var(--line);
@@ -600,13 +603,16 @@ body {
 
 /* ---------- narrow windows: coach moves under the table so the table keeps its size ---------- */
 @media (max-width: 1199px) {
-    .workspace { grid-template-columns: 270px minmax(0, 1fr); gap: 24px; }
-    .coach { grid-column: 1 / -1; position: static; height: 520px; }
+    .workspace { grid-template-columns: 270px minmax(0, 1fr); gap: 20px 24px; }
+    .coach { grid-column: 1 / -1; grid-row: 3; position: static; height: 520px; }
 }
 
 /* ---------- tablets and phones: one column (table, then situation, then coach) ---------- */
 @media (max-width: 1023px) {
     .workspace { grid-template-columns: minmax(0, 1fr); }
+    .intro, .panel, .table-area, .coach { grid-column: 1; grid-row: auto; }
+    .table-area { min-height: 0; }
+    .intro { order: 0; }
     .table-area { order: 1; }
     .panel { order: 2; position: static; max-height: none; overflow: visible; }
     .coach { order: 3; }

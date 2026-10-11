@@ -29,13 +29,13 @@
 
 <main class="page">
 
-    <div class="intro">
-        <h1>Should you call?</h1>
-        <p>Set your two cards and the board. We deal out the rest 10,000 times and show how often you win.</p>
-    </div>
-
-    <!-- After you press Deal, the page scrolls so this whole row is on screen -->
     <div class="workspace" id="workspace">
+
+        <!-- Top left: the headline. The coach on the right starts level with it. -->
+        <div class="intro">
+            <h1>Should you call?</h1>
+            <p>Set your two cards and the board. We deal out the rest 10,000 times and show how often you win.</p>
+        </div>
 
         <!-- Left: the situation and the answer -->
         <aside class="panel" aria-label="Your situation">
@@ -60,10 +60,10 @@
             </div>
 
             <!-- visible label comes from style.css (#runSimBtn::after) -->
-            <button id="runSimBtn" class="btn-primary" aria-label="Deal 10,000 hands" onclick="runMonteCarloSimulation()">Deal 10,000 hands</button>
+            <button id="runSimBtn" class="btn-primary" aria-label="Calculate" onclick="runMonteCarloSimulation()">Calculate</button>
 
             <div class="results" id="results" aria-live="polite">
-                <p id="resultsHint">Pick your two cards, then deal.</p>
+                <p id="resultsHint">Pick your two cards, then press Calculate.</p>
 
                 <div id="simResultsCard" class="hidden">
                     <p class="win-line"><span id="winRateVal">0.0%</span> <span class="win-label">chance you win</span></p>
@@ -227,13 +227,17 @@
     // Deal an example hand on first load, so the table isn't empty
     window.addEventListener('load', () => window.loadPreset?.('flush_draw'));
 
-    // After pressing Deal, scroll past the intro so the table and the win rate are both on screen
+    // After pressing Calculate, scroll past the headline so the table and the win rate are both on screen
     document.getElementById('runSimBtn').addEventListener('click', () => {
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const target = window.matchMedia('(min-width: 1024px)').matches
-            ? document.getElementById('workspace')   // wide screens: table and win rate side by side
-            : document.getElementById('results');    // phones: jump to the answer
-        target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+            // wide screens: the table's row lands just under the pinned header
+            const headerH = document.querySelector('.topbar-wrap').getBoundingClientRect().height;
+            const top = document.querySelector('.table-area').getBoundingClientRect().top + window.scrollY - headerH - 14;
+            window.scrollTo({ top: Math.max(0, top), behavior });
+        } else {
+            document.getElementById('results').scrollIntoView({ behavior, block: 'start' });   // phones: jump to the answer
+        }
     });
 
     // Esc closes whichever dialog is open
