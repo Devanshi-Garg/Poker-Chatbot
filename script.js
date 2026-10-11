@@ -1,5 +1,6 @@
 import { monteCarlo } from "./monteCarlo.js";
 import { renderCardContent } from "./cards.js";
+import { renderTableSeats } from "./table.js";
 // ==========================================
 // CONSTANTS & GAME STATE
 // ==========================================
@@ -48,7 +49,17 @@ const PRESETS = {
 window.onload = function() {
     checkApiKeyStatus();
     renderTable();
+    syncSeats();
 };
+
+// Redraws the opponents' seats, their bets and the pot chips (see table.js)
+function syncSeats() {
+    renderTableSeats({
+        opponents: gameState.opponents,
+        pot: gameState.pot,
+        call: gameState.callAmount
+    });
+}
 
 function checkApiKeyStatus() {
     const key = localStorage.getItem('gemini_api_key');
@@ -140,6 +151,7 @@ function selectCard(rank, suit) {
     gameState[type][index] = { r: rank, s: suit };
     closeCardPicker();
     renderTable();
+    invalidateSimulation(); // new cards = old odds no longer apply
 }
 
 function removeSelectedCard() {
@@ -148,27 +160,41 @@ function removeSelectedCard() {
     gameState[type][index] = null;
     closeCardPicker();
     renderTable();
+    invalidateSimulation();
 }
 
 function clearTableCards() {
     gameState.hole = [null, null];
     gameState.board = [null, null, null, null, null];
     renderTable();
-    document.getElementById('simResultsCard').classList.add('hidden');
+    invalidateSimulation();
 }
 
 function updateOpponents(val) {
     gameState.opponents = parseInt(val);
     document.getElementById('opponentsVal').innerText = val;
+    syncSeats();
+    invalidateSimulation(); // more or fewer opponents changes the win chance, so deal again
 }
 
 function updatePot(val) {
     gameState.pot = parseFloat(val) || 0;
     document.getElementById('tablePotDisplay').innerText = `$${gameState.pot}`;
+    syncSeats();
+    showResults(); // pot only changes the price, not the win chance: update the advice right away
 }
 
 function updateCall(val) {
     gameState.callAmount = parseFloat(val) || 0;
+    syncSeats();
+    showResults();
+}
+
+// Hides results that belong to a different hand, so the page never shows advice for the wrong cards
+function invalidateSimulation() {
+    gameState.engineResult = null;
+    gameState.lastSimResults = null;
+    document.getElementById('simResultsCard').classList.add('hidden');
 }
 
 function loadPreset(key) {
@@ -187,6 +213,7 @@ function loadPreset(key) {
     document.getElementById('tablePotDisplay').innerText = `$${preset.pot}`;
 
     renderTable();
+    syncSeats();
     runMonteCarloSimulation();
 }
 
@@ -245,101 +272,118 @@ function runMonteCarloSimulation() {
 
     // Timeout to allow UI to show spinning state
     setTimeout(() => {
+        try {
+            // Step 1: Convert the cards to our engine's format ("As", "Kd", ...)
+            const myCards = gameState.hole.map(card => card.r + card.s);
+            const communityCards = gameState.board.filter(Boolean).map(card => card.r + card.s);
+            const opponents = gameState.opponents;
 
-// Step 1: Convert the player's cards to our engine's format
-        const myCards = gameState.hole.map(card =>
-            card.r + card.s
-        );
+            // Step 2: Run our Monte Carlo simulation (10,000 random deals)
+            const result = monteCarlo(myCards, communityCards, opponents);
 
-// Step 2: Convert known community cards
-        const communityCards = gameState.board
-            .filter(Boolean)
-            .map(card => card.r + card.s);
+            // Step 3: Remember the odds, then turn them into advice
+            gameState.engineResult = {
+                winPct: result.winProbability,
+                tiePct: result.tieProbability,
+                opponents
+            };
+            showResults();
 
-// Step 3: Get the number of opponents
-        const opponents = gameState.opponents;
-
-// Step 4: Run our Monte Carlo simulation
-        const result = monteCarlo(
-            myCards,
-            communityCards,
-            opponents
-        );
-
-// Step 5: Extract the probabilities
-        const winPct = result.winProbability;
-        const tiePct = result.tieProbability;
-        const lossPct = 100 - winPct - tiePct;
-
-
-        // Pot Odds Calculation: Call / (Pot + Call)
-        const pot = gameState.pot;
-        const call = gameState.callAmount;
-        const potOdds = call > 0 ? (call / (pot + call)) * 100 : 0;
-
-        // Expected Value (EV): (Win Equity * Total Pot after Call) - Call
-        const totalEquityFrac = (winPct + (tiePct / 2)) / 100;
-        const expectedValue = call > 0 ? (totalEquityFrac * (pot + call)) - call : (totalEquityFrac * pot);
-
-        // Recommendation Logic
-        let action = "CHECK / CALL";
-        let badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-
-        if (call === 0) {
-            if (winPct > (100 / (opponents + 1)) + 15) {
-                action = "BET / RAISE";
-                badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-            } else {
-                action = "CHECK";
-                badgeClass = "bg-blue-500/20 text-blue-400 border-blue-500/30";
-            }
-        } else {
-            if (totalEquityFrac * 100 > potOdds + 12) {
-                action = "RAISE / RE-RAISE";
-                badgeClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-            } else if (totalEquityFrac * 100 >= potOdds) {
-                action = "CALL";
-                badgeClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-            } else {
-                action = "FOLD";
-                badgeClass = "bg-rose-500/20 text-rose-400 border-rose-500/30";
-            }
+            // Auto notify Gemini chatbot with state context
+            appendSystemMessageToChat();
+        } catch (err) {
+            alert('The simulation could not run: ' + err.message);
+        } finally {
+            // Always give the button back, even if something went wrong
+            simBtn.disabled = false;
+            simBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (10,000 Hands)`;
         }
-
-        gameState.lastSimResults = {
-            winPct, tiePct, lossPct, potOdds, expectedValue, action
-        };
-
-        // Update UI Display
-        document.getElementById('simResultsCard').classList.remove('hidden');
-        document.getElementById('winRateVal').innerText = winPct.toFixed(1) + '%';
-        document.getElementById('tieRateVal').innerText = tiePct.toFixed(1) + '%';
-        document.getElementById('potOddsVal').innerText = potOdds.toFixed(1) + '%';
-        document.getElementById('evVal').innerText = (expectedValue >= 0 ? '+' : '') + '$' + expectedValue.toFixed(2);
-        document.getElementById('evVal').className = `text-xl font-black font-mono ${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-
-        const badge = document.getElementById('recommendedBadge');
-        badge.innerText = action;
-        badge.className = `px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${badgeClass}`;
-
-        // Update Distribution Bar
-        document.getElementById('winBar').style.width = `${winPct}%`;
-        document.getElementById('tieBar').style.width = `${tiePct}%`;
-        document.getElementById('lossBar').style.width = `${lossPct}%`;
-        document.getElementById('equityBreakdownLabel').innerText = `Win: ${winPct.toFixed(1)}% | Tie: ${tiePct.toFixed(1)}% | Loss: ${lossPct.toFixed(1)}%`;
-
-        // Analysis text
-        document.getElementById('simAnalysisText').innerHTML = `
-                    <b>Mathematical Summary:</b> Your total equity is <b>${(totalEquityFrac*100).toFixed(1)}%</b> compared to required Pot Odds of <b>${potOdds.toFixed(1)}%</b>. 
-                    This results in a long-term expected value of <b class="${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${expectedValue >= 0 ? '+$' : '-$'}${Math.abs(expectedValue).toFixed(2)}</b> per decision.
-                `;
-
-        simBtn.disabled = false;
-        simBtn.innerHTML = `<i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (10,000 Hands)`;
-
-        // Auto notify Gemini chatbot with state context
-        appendSystemMessageToChat();
     }, 50);
+}
+
+// ==========================================
+// RECOMMENDATION (math first, kept simple enough to explain)
+// ==========================================
+// equity   = how often you win, counting a tie as half a win (from the simulation)
+// pot odds = the share of the final pot you pay when you call
+// Calling makes money over time when equity >= pot odds.
+export function recommendAction(equity, potOdds, call, opponents) {
+    // An average hand at this table wins 1 time in (opponents + 1)
+    const fairShare = 100 / (opponents + 1);
+
+    if (call === 0) {
+        // Nothing to call: bet when the hand is clearly better than an average hand here
+        return equity >= fairShare * 1.25 ? 'BET / RAISE' : 'CHECK';
+    }
+    if (equity >= potOdds + 12) return 'RAISE / RE-RAISE';
+    if (equity >= potOdds) return 'CALL';
+    return 'FOLD';
+}
+
+// Every opponent still in the hand has put in at least the current bet,
+// so the pot can never be smaller than (opponents x amount to call).
+export function effectivePot(pot, call, opponents) {
+    return Math.max(pot, call > 0 ? opponents * call : 0);
+}
+
+const BADGE_CLASSES = {
+    'RAISE / RE-RAISE': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    'BET / RAISE': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    'CALL': 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    'CHECK': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'FOLD': 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+};
+
+// Draws the results panel from the last simulation and the CURRENT pot / call amount
+function showResults() {
+    const sim = gameState.engineResult;
+    if (!sim) return;
+
+    const { winPct, tiePct, opponents } = sim;
+    const lossPct = Math.max(0, 100 - winPct - tiePct);
+    const call = gameState.callAmount;
+    const pot = effectivePot(gameState.pot, call, opponents);
+    const potWasRaised = pot > gameState.pot;
+
+    // Pot Odds: Call / (Pot + Call)
+    const potOdds = call > 0 ? (call / (pot + call)) * 100 : 0;
+
+    // Expected Value (EV): (Equity x Total Pot after Call) - Call
+    const equity = winPct + tiePct / 2;
+    const expectedValue = call > 0 ? (equity / 100) * (pot + call) - call : (equity / 100) * pot;
+
+    const action = recommendAction(equity, potOdds, call, opponents);
+
+    gameState.lastSimResults = {
+        winPct, tiePct, lossPct, potOdds, expectedValue, action, pot
+    };
+
+    // Update UI Display
+    document.getElementById('simResultsCard').classList.remove('hidden');
+    document.getElementById('winRateVal').innerText = winPct.toFixed(1) + '%';
+    document.getElementById('tieRateVal').innerText = tiePct.toFixed(1) + '%';
+    document.getElementById('potOddsVal').innerText = potOdds.toFixed(1) + '%';
+    document.getElementById('evVal').innerText = (expectedValue >= 0 ? '+' : '-') + '$' + Math.abs(expectedValue).toFixed(2);
+    document.getElementById('evVal').className = `text-xl font-black font-mono ${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+
+    const badge = document.getElementById('recommendedBadge');
+    badge.innerText = action;
+    badge.className = `px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border ${BADGE_CLASSES[action]}`;
+
+    // Update Distribution Bar
+    document.getElementById('winBar').style.width = `${winPct}%`;
+    document.getElementById('tieBar').style.width = `${tiePct}%`;
+    document.getElementById('lossBar').style.width = `${lossPct}%`;
+    document.getElementById('equityBreakdownLabel').innerText = `Win: ${winPct.toFixed(1)}% | Tie: ${tiePct.toFixed(1)}% | Loss: ${lossPct.toFixed(1)}%`;
+
+    // Analysis text
+    const potNote = potWasRaised
+        ? ` <br>With ${opponents} opponents still in, each has put in at least the $${call} bet, so the pot is at least <b>$${pot}</b>. We used $${pot} instead of $${gameState.pot}.`
+        : '';
+    document.getElementById('simAnalysisText').innerHTML = call > 0
+        ? `<b>Mathematical Summary:</b> Your total equity is <b>${equity.toFixed(1)}%</b> compared to required Pot Odds of <b>${potOdds.toFixed(1)}%</b>.
+           This results in a long-term expected value of <b class="${expectedValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${expectedValue >= 0 ? '+$' : '-$'}${Math.abs(expectedValue).toFixed(2)}</b> per decision.${potNote}`
+        : `<b>Mathematical Summary:</b> Nothing to call. Your total equity is <b>${equity.toFixed(1)}%</b>, while an average hand against ${opponents} opponent${opponents === 1 ? '' : 's'} wins <b>${(100 / (opponents + 1)).toFixed(1)}%</b>.`;
 }
 
 function appendSystemMessageToChat() {

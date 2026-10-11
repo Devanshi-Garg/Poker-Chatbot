@@ -90,27 +90,30 @@ function readNumber(value, name, min, max) {
   return n;
 }
 
-// Same formulas as runMonteCarloSimulation() in index.html.
+// Same rules as recommendAction() / effectivePot() / showResults() in script.js.
 // If you change the math there, change it here too.
-export function computeAnalysis({ winPct, tiePct, pot, callAmount, opponents }) {
+export function computeAnalysis({ winPct, tiePct, pot: enteredPot, callAmount, opponents }) {
   const lossPct = Math.max(0, 100 - winPct - tiePct);
+  // Every opponent still in has put in at least the current bet, so the pot is at least opponents x call
+  const pot = Math.max(enteredPot, callAmount > 0 ? opponents * callAmount : 0);
   const potOdds = callAmount > 0 ? (callAmount / (pot + callAmount)) * 100 : 0;
-  const totalEquityFrac = (winPct + tiePct / 2) / 100; // a tie counts as half a win
+  const equityPct = winPct + tiePct / 2; // a tie counts as half a win
   const expectedValue =
-    callAmount > 0 ? totalEquityFrac * (pot + callAmount) - callAmount : totalEquityFrac * pot;
+    callAmount > 0 ? (equityPct / 100) * (pot + callAmount) - callAmount : (equityPct / 100) * pot;
 
+  const fairShare = 100 / (opponents + 1); // what an average hand at this table wins
   let action;
   if (callAmount === 0) {
-    action = winPct > 100 / (opponents + 1) + 15 ? "BET / RAISE" : "CHECK";
-  } else if (totalEquityFrac * 100 > potOdds + 12) {
+    action = equityPct >= fairShare * 1.25 ? "BET / RAISE" : "CHECK";
+  } else if (equityPct >= potOdds + 12) {
     action = "RAISE / RE-RAISE";
-  } else if (totalEquityFrac * 100 >= potOdds) {
+  } else if (equityPct >= potOdds) {
     action = "CALL";
   } else {
     action = "FOLD";
   }
 
-  return { winPct, tiePct, lossPct, equityPct: totalEquityFrac * 100, potOdds, expectedValue, action };
+  return { winPct, tiePct, lossPct, equityPct, potOdds, expectedValue, action, pot, potWasRaised: pot > enteredPot };
 }
 
 // Expected shape (this is what index.html's buildSituation() sends):
@@ -169,6 +172,9 @@ export function buildSystemInstruction(s) {
     ? [
         `- Win: ${pct(a.winPct)} | Tie: ${pct(a.tiePct)} | Loss: ${pct(a.lossPct)}`,
         `- Total equity (win + half of ties): ${pct(a.equityPct)}`,
+        ...(a.potWasRaised
+          ? [`- Pot used for the math: ${money(a.pot)} (with ${s.opponents} opponents still in, each has put in at least the ${money(s.callAmount)} bet)`]
+          : []),
         `- Required pot odds: ${pct(a.potOdds)}`,
         `- Expected value (EV) of ${s.callAmount > 0 ? "calling" : "continuing"}: ${signedMoney(a.expectedValue)} per decision`,
         `- Recommended action from our engine: ${a.action}`,
