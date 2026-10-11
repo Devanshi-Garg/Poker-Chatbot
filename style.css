@@ -1,107 +1,658 @@
-/* =========================================
-   GLOBAL STYLING
-========================================= */
+/* =========================================================
+   PokerMind styles
+   One strong element (the felt table with real cards);
+   everything around it stays quiet and readable.
+   ========================================================= */
+
+:root {
+    --paper: #eef1ec;       /* page background, light grey-green */
+    --surface: #ffffff;     /* panels */
+    --ink: #1b231f;         /* main text, primary button */
+    --muted: #5b6862;       /* secondary text */
+    --line: #d6ddd7;        /* borders */
+    --felt: #2a6646;        /* the table */
+    --felt-dark: #215339;
+    --rail: #173828;        /* table edge */
+    --win: #2f7d52;
+    --tie: #a87414;
+    --tie-fill: #d4a03a;
+    --loss: #b3322b;        /* chip red: fold, losing */
+    --loss-fill: #e3a29d;
+
+    --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    --font-text: "Atkinson Hyperlegible", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+
+}
+
+/* ---------- reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+body, h1, h2, h3, p, dl, dd, ol, ul, figure { margin: 0; }
+ol, ul { padding: 0; }
+button, input { font: inherit; color: inherit; }
+img { max-width: 100%; }
+.hidden { display: none !important; }   /* script.js shows/hides things with this class */
 
 body {
-    background-color: #0b0f19;
-    color: #f3f4f6;
-    font-family: 'Inter', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-size: 17px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
+:focus-visible { outline: 3px solid #1f6feb; outline-offset: 2px; border-radius: 6px; }
 
-/* =========================================
-   POKER TABLE
-========================================= */
+/* ---------- small shared pieces ---------- */
+.link {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+.link:hover { text-decoration-thickness: 2px; }
 
-.poker-felt {
-    background: radial-gradient(
-            ellipse at center,
-            #1b5e32 0%,
-            #0d381e 70%,
-            #072011 100%
-    );
+.btn-quiet {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+.btn-quiet:hover { border-color: var(--muted); }
 
-    box-shadow:
-            inset 0 0 80px rgba(0, 0, 0, 0.8),
-            0 0 20px rgba(0, 0, 0, 0.5);
+.btn-primary {
+    background: var(--ink);
+    color: #fff;
+    border: 0;
+    border-radius: 12px;
+    padding: 13px 22px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.btn-primary:hover { background: #2c3833; }
 
-    border: 12px solid #3d2612;
+/* ---------- header (pinned while scrolling) ---------- */
+.topbar-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(238, 241, 236, 0.92);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+}
+.topbar {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 14px 28px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+}
+.wordmark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+}
+.topbar nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; font-size: 15px; color: var(--muted); }
+.topbar nav .link { white-space: nowrap; }
+
+/* Gemini key link: script.js sets the dot's colour class and the text */
+#apiKeyStatusBtn { display: inline-flex; align-items: center; gap: 8px; }
+#apiKeyDot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); animation: none; }
+#apiKeyDot[class*="emerald"] { background: var(--win); }
+#apiKeyDot[class*="amber"] { background: var(--tie-fill); }
+
+/* ---------- page layout: situation | table | coach ---------- */
+.page {
+    max-width: 1480px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 28px 28px 40px;
+    flex: 1;
+}
+.intro h1 {
+    font-family: var(--font-display);
+    font-size: 52px;
+    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.intro p { margin-top: 10px; max-width: 52ch; color: var(--muted); font-size: 19px; }
+
+.workspace {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+    scroll-margin-top: 76px;              /* when scrolled to, it lands just under the header */
 }
 
+/* ---------- left panel: your situation + the answer ---------- */
+.panel {
+    position: sticky;
+    top: 76px;
+    max-height: calc(100vh - 92px);
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 18px 20px;
+    display: grid;
+    gap: 12px;
+}
+.panel h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
 
-/* =========================================
-   PLAYING CARDS
-========================================= */
+.field { display: grid; gap: 2px; align-content: start; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pair .field { grid-template-rows: auto 1fr auto; }   /* inputs line up even if a hint wraps */
+.field-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; }
+.hint { font-size: 14px; color: var(--muted); }
+#opponentsVal { font-family: var(--font-display); font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+#opponentsInput { width: 100%; height: 34px; accent-color: var(--felt); margin: 0; }
 
-.poker-card {
-    background: linear-gradient(
-            135deg,
-            #ffffff 0%,
-            #f8fafc 100%
-    );
+.money { position: relative; display: block; margin-top: 4px; }
+.money span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+.money input {
+    width: 100%;
+    padding: 10px 12px 10px 26px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+}
+.money input:focus { border-color: var(--felt); outline: none; box-shadow: 0 0 0 3px rgba(42, 102, 70, 0.2); }
 
-    border: 1px solid #cbd5e1;
+/* script.js rewrites this button's inside text after each run,
+   so the visible label comes from CSS and stays the same */
+#runSimBtn { width: 100%; padding: 15px 18px; font-size: 0; }
+#runSimBtn::after { content: "Deal 10,000 hands"; font-size: 17px; }
+#runSimBtn:disabled { opacity: 0.75; cursor: progress; }
+#runSimBtn:disabled::after { content: "Dealing\2026"; }
 
-    box-shadow:
-            0 4px 6px -1px rgba(0, 0, 0, 0.25),
-            0 2px 4px -1px rgba(0, 0, 0, 0.1);
+/* the answer, right under the button */
+.results { border-top: 1px solid var(--line); padding-top: 12px; }
+.results:has(#simResultsCard:not(.hidden)) #resultsHint { display: none; }
+#resultsHint { color: var(--muted); }
 
-    border-radius: 8px;
+.win-line { display: grid; }
+#winRateVal {
+    font-family: var(--font-display);
+    font-size: 58px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+}
+.win-label { font-size: 17px; color: var(--muted); }
 
+/* recommendation; script.js sets the text and a colour class */
+#recommendedBadge {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    border: 2px solid currentColor;
+    font-weight: 700;
+    font-size: 17px;
+    text-transform: lowercase;
+    color: var(--ink);
+}
+#recommendedBadge::first-letter { text-transform: uppercase; }
+#recommendedBadge[class*="emerald"] { color: var(--win); }
+#recommendedBadge[class*="amber"] { color: var(--tie); }
+#recommendedBadge[class*="blue"] { color: #2d5a8c; }
+#recommendedBadge[class*="rose"] { color: var(--loss); }
+
+.bar {
+    margin-top: 12px;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    display: flex;
+    background: var(--line);
+}
+#winBar { background: var(--win); transition: width 0.4s ease; }
+#tieBar { background: var(--tie-fill); transition: width 0.4s ease; }
+#lossBar { background: var(--loss-fill); transition: width 0.4s ease; }
+#equityBreakdownLabel { margin-top: 5px; font-size: 12px; white-space: nowrap; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.facts { margin-top: 8px; display: grid; }
+.facts > div { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border-top: 1px solid var(--line); }
+.facts dt { font-size: 15px; color: var(--muted); }
+.facts dd { font-family: var(--font-display); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#evVal[class*="emerald"] { color: var(--win); }
+#evVal[class*="rose"] { color: var(--loss); }
+
+#simAnalysisText { margin-top: 10px; font-size: 15px; color: #36423c; }
+#simAnalysisText b[class*="emerald"] { color: var(--win); }
+#simAnalysisText b[class*="rose"] { color: var(--loss); }
+
+/* ---------- the table ---------- */
+.table-area { min-width: 0; padding: 50px 56px 0; }   /* room for the chairs around the table */
+
+.felt {
     position: relative;
+    container-type: inline-size;          /* card sizes below follow the table's width */
+    margin-bottom: 52px;                  /* room for your chair */
+    background: radial-gradient(ellipse at 50% 45%, #2f7150 0%, var(--felt) 55%, var(--felt-dark) 100%);
+    border-radius: 200px / 180px;
+    box-shadow: 0 0 0 12px var(--rail), inset 0 2px 30px rgba(0, 0, 0, 0.35);
+    padding: 112px 36px 30px;
+    color: #fff;
+    display: grid;
+    justify-items: center;
+    gap: 12px;
 
-    user-select: none;
+    --board-w: min(92px, calc((82cqw - 48px) / 5));
+    --board-h: calc(var(--board-w) / 0.643);
+    --hole-w: min(112px, 16cqw);
+    --hole-h: calc(var(--hole-w) / 0.643);
+    --reach: 64px;                        /* how far in front of a seat its bet sits */
+}
 
-    transition:
-            transform 0.15s ease,
-            box-shadow 0.15s ease;
+.board-row, .hand { display: flex; justify-content: center; gap: 12px; }
+.hand { gap: 16px; }
 
+.pot-area { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.pot { font-size: 15px; color: rgba(255, 255, 255, 0.8); }
+#tablePotDisplay {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 28px;
+    line-height: 1.1;
+    font-weight: 700;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.table-tools { margin: -16px -48px 0 0; text-align: right; font-size: 15px; color: var(--muted); }   /* below the rail, clear of the chairs */
+.examples { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 15px; color: var(--muted); }
+.examples .link { color: var(--ink); }
+
+/* Card slots. script.js replaces their class names, so they are styled by id. */
+#board-0, #board-1, #board-2, #board-3, #board-4 { width: var(--board-w); height: var(--board-h); }
+#hole-0, #hole-1 { width: var(--hole-w); height: var(--hole-h); }
+
+#board-0, #board-1, #board-2, #board-3, #board-4, #hole-0, #hole-1 {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+    padding: 0;
+    overflow: visible;
+}
+#board-0:hover, #board-1:hover, #board-2:hover, #board-3:hover, #board-4:hover,
+#hole-0:hover, #hole-1:hover { border-color: rgba(255, 255, 255, 0.85); transform: translateY(-3px); }
+
+/* a slot with a card image in it: just the card */
+#board-0:has(img), #board-1:has(img), #board-2:has(img), #board-3:has(img), #board-4:has(img),
+#hole-0:has(img), #hole-1:has(img) { border: 0; background: none; }
+#board-0 img, #board-1 img, #board-2 img, #board-3 img, #board-4 img, #hole-0 img, #hole-1 img {
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+}
+
+/* ---------- seats around the table (drawn by table.js) ---------- */
+.seats { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.seat {
+    position: absolute;
+    left: calc(var(--x) * 1%);
+    top: calc(var(--y) * 1%);
+    transform: translate(-50%, -50%);
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+}
+
+/* the chair, just outside the table and turned to face it */
+.chair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: -1;                          /* behind the player's cards */
+    width: 50px;
+    height: 32px;
+    border-radius: 16px 16px 8px 8px;     /* rounded backrest away from the table */
+    background: linear-gradient(#7a5638, #4f3423);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), inset 0 2px 0 rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%) translate(calc(var(--ox) * -32px), calc(var(--oy) * -32px)) rotate(var(--angle));
+}
+
+.seat-cards { display: flex; }
+.seat-cards img {
+    width: 30px;
+    height: 47px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}
+.seat-cards img:first-child { transform: rotate(-8deg); }
+.seat-cards img:last-child { margin-left: -16px; transform: rotate(8deg); }
+.seat-name {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    color: #fff;
+    background: rgba(9, 24, 17, 0.8);
+    padding: 1px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+/* your own seat: the name tag sits on your chair, below the table */
+.seat-you .seat-name { position: relative; top: 32px; background: var(--ink); }
+
+/* a seat's bet, pushed toward the middle of the table */
+.bet {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(calc(-50% + var(--dx) * var(--reach)), calc(-50% + var(--dy) * var(--reach)));
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+}
+.bet-amount {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.4;
+    background: rgba(9, 24, 17, 0.55);
+    padding: 0 7px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- chips ---------- */
+.stacks { display: flex; align-items: flex-end; gap: 4px; }
+.stack { position: relative; width: 24px; height: calc(24px + (var(--count) - 1) * 4px); }
+.chip {
+    position: absolute;
+    left: 0;
+    bottom: calc(var(--i) * 4px);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--chip);
+    border: 3px dashed var(--edge);       /* the stripes around a casino chip's edge */
+    box-shadow: inset 0 0 0 3px var(--chip), 0 1px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.chip-white  { --chip: #f3f1ea; --edge: #2f5fa8; }
+.chip-red    { --chip: #c8102e; --edge: #ffffff; }
+.chip-green  { --chip: #138a52; --edge: #ffffff; }
+.chip-black  { --chip: #1c1c1c; --edge: #ffffff; }
+.chip-purple { --chip: #6b3fa0; --edge: #f2c94c; }
+
+/* Card slots. script.js replaces their class names, so they are styled by id. */
+#board-0, #board-1, #board-2, #board-3, #board-4 { width: var(--board-w); height: var(--board-h); }
+#hole-0, #hole-1 { width: var(--hole-w); height: var(--hole-h); }
+
+#board-0, #board-1, #board-2, #board-3, #board-4, #hole-0, #hole-1 {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: center;
+    padding: 0;
+    overflow: visible;
+}
+#board-0:hover, #board-1:hover, #board-2:hover, #board-3:hover, #board-4:hover,
+#hole-0:hover, #hole-1:hover { border-color: rgba(255, 255, 255, 0.85); transform: translateY(-3px); }
+
+/* a slot with a card image in it: just the card */
+#board-0:has(img), #board-1:has(img), #board-2:has(img), #board-3:has(img), #board-4:has(img),
+#hole-0:has(img), #hole-1:has(img) { border: 0; background: none; }
+#board-0 img, #board-1 img, #board-2 img, #board-3 img, #board-4 img, #hole-0 img, #hole-1 img {
+    filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+}
+
+
+/* ---------- coach (chat) ---------- */
+.coach {
+    position: sticky;
+    top: 76px;                            /* just under the pinned header */
+    height: calc(100vh - 92px);
+    min-height: 460px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
+.coach-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 18px 20px 12px;
+    border-bottom: 1px solid var(--line);
+}
+.coach-head h2 { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+.coach-head .link { font-size: 15px; color: var(--muted); }
 
-.poker-card:hover {
-    transform: translateY(-2px);
+#chatMessages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 16px;
+}
+/* message rows; script.js builds these, so they're styled by structure */
+#chatMessages > div.flex { display: flex; }
+#chatMessages > div.flex > div:first-child:not(:last-child) { display: none; }   /* robot avatars */
+#chatMessages > div.flex:not(.justify-end) > div:last-child {                      /* coach */
+    background: #f4f6f3;
+    border-radius: 14px 14px 14px 4px;
+    padding: 12px 14px;
+    max-width: 92%;
+    color: var(--ink);
+}
+#chatMessages > div.justify-end { justify-content: flex-end; }
+#chatMessages > div.justify-end > div {                                            /* you */
+    background: var(--felt);
+    color: #fff;
+    border-radius: 14px 14px 4px 14px;
+    padding: 10px 14px;
+    max-width: 85%;
+}
+#chatMessages > [id^="typing-"] > div:last-child { color: var(--muted); font-style: italic; }
+#chatMessages > div:not(.flex) {                                                   /* "simulation loaded" note */
+    font-size: 14px;
+    color: var(--muted);
+    border-left: 3px solid var(--line);
+    padding: 2px 0 2px 12px;
+}
+#chatMessages > div:not(.flex) b { color: var(--ink); font-weight: 700; }
+#chatMessages i[class*="fa-"] { display: none; }
+#chatMessages .link { color: var(--felt); font-weight: 700; }
 
-    box-shadow:
-            0 10px 15px -3px rgba(0, 0, 0, 0.3);
+.ask { display: flex; gap: 8px; padding: 14px; border-top: 1px solid var(--line); }
+#chatInput {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    font-size: 16px;
+}
+#chatInput:focus { border-color: var(--felt); outline: none; box-shadow: 0 0 0 3px rgba(42, 102, 70, 0.2); }
+#sendBtn { padding: 11px 18px; }
+#sendBtn i { display: none; }
+
+/* ---------- dialogs ---------- */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(18, 26, 22, 0.55);
+}
+.sheet {
+    width: 100%;
+    max-width: 520px;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 22px 24px 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.sheet-head h2 { font-family: var(--font-display); font-size: 24px; font-weight: 700; }
+.close { background: none; border: 0; font-size: 28px; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+.sheet-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+.danger { color: var(--loss); }
+
+/* card picker: suit tabs (script.js marks the active one with bg-slate-800) */
+.suits { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+.suit-tab {
+    padding: 9px 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 15px;
+}
+.suit-tab[class~="bg-slate-800"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+/* card picker: rank buttons drawn as small cards */
+#cardRankGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
+#cardRankGrid button {
+    aspect-ratio: 0.72;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+#cardRankGrid button:hover:not(:disabled) { border-color: var(--felt); transform: translateY(-2px); }
+#cardRankGrid button [class~="text-red-400"] { color: #c8102e; }
+#cardRankGrid button:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+
+/* hand rankings + key dialogs */
+.guide h3 { font-family: var(--font-display); font-size: 19px; margin: 18px 0 8px; }
+.guide h3:first-child { margin-top: 0; }
+.ranks { list-style: decimal; padding-left: 24px; display: grid; gap: 4px; }
+.ranks span { color: var(--muted); }
+.terms { display: grid; gap: 10px; }
+.terms dt { font-weight: 700; }
+.terms dd { color: #36423c; }
+.key-help { color: var(--muted); font-size: 15px; }
+.key-field { display: grid; gap: 6px; margin: 16px 0; font-weight: 700; }
+#apiKeyInput { padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; font-family: ui-monospace, monospace; }
+.sheet-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- footer ---------- */
+.footnote {
+    max-width: 1480px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 28px 28px;
+    font-size: 14px;
+    color: var(--muted);
 }
 
-
-/* =========================================
-   CARD SUITS
-========================================= */
-
-.suit-red {
-    color: #d32f2f;
+/* ---------- smaller laptops: slimmer side columns, the coach stays on the right ---------- */
+@media (max-width: 1359px) {
+    .workspace { grid-template-columns: 250px minmax(0, 1fr) 290px; gap: 20px; }
 }
 
-.suit-black {
-    color: #1a1a1a;
+/* ---------- narrow windows: coach moves under the table so the table keeps its size ---------- */
+@media (max-width: 1199px) {
+    .workspace { grid-template-columns: 270px minmax(0, 1fr); gap: 24px; }
+    .coach { grid-column: 1 / -1; position: static; height: 520px; }
 }
 
-.pip-inverted {
-    transform: rotate(180deg);
+/* ---------- tablets and phones: one column (table, then situation, then coach) ---------- */
+@media (max-width: 1023px) {
+    .workspace { grid-template-columns: minmax(0, 1fr); }
+    .table-area { order: 1; }
+    .panel { order: 2; position: static; max-height: none; overflow: visible; }
+    .coach { order: 3; }
+    .results { scroll-margin-top: 76px; }
 }
 
-
-/* =========================================
-   CUSTOM SCROLLBAR
-========================================= */
-
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+@media (max-width: 640px) {
+    .topbar, .page, .footnote { padding-left: 16px; padding-right: 16px; }
+    .topbar { padding-top: 10px; padding-bottom: 10px; }
+    .topbar nav { gap: 6px 14px; font-size: 14px; }
+    .workspace, .results { scroll-margin-top: 96px; }
+    .coach { height: 440px; }
+    .intro h1 { font-size: 36px; }
+    .intro p { font-size: 17px; }
+    .table-area { padding: 0; }
+    .table-tools { margin: 10px 0 0; }
+    .felt {
+        margin-bottom: 0;
+        padding: 14px 12px 18px;
+        gap: 14px;
+        border-radius: 24px;
+        box-shadow: 0 0 0 6px var(--rail), inset 0 2px 20px rgba(0, 0, 0, 0.35);
+        --board-w: 56px;
+        --hole-w: 78px;
+    }
+    /* on phones the seats sit in a row along the top of the table, with their bet written underneath */
+    .seats { position: static; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 3px; }
+    .seat { position: static; transform: none; gap: 2px; }
+    .chair, .seat-you { display: none; }
+    .seat-cards img { width: 18px; height: 28px; }
+    .seat-cards img:last-child { margin-left: -9px; }
+    .seat-name { font-size: 11px; padding: 0 6px; }
+    .seat-name .long { display: none; }
+    .bet { position: static; transform: none; }
+    .bet .stacks { display: none; }
+    .bet-amount { font-size: 11px; padding: 0 4px; }
+    .pot-area { min-height: 0; }
+    .board-row { gap: 6px; }
+    .hand { gap: 10px; }
+    #board-0, #board-1, #board-2, #board-3, #board-4, #hole-0, #hole-1 { font-size: 11px; }
+    #tablePotDisplay { font-size: 22px; }
+    .stack { transform: scale(0.8); transform-origin: bottom center; }
+    #winRateVal { font-size: 52px; }
 }
 
-::-webkit-scrollbar-track {
-    background: #111827;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #374151;
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #4b5563;
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
 }

@@ -3,449 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No-Brain Poker: should you call?</title>
+    <meta name="description" content="Pick your cards and see how often your hand wins, with an AI coach that explains the math.">
 
-    <title>Poker Mind - Texas Hold'em Monte Carlo & Gemini AI Advisor</title>
-
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
-          rel="stylesheet">
-
-    <!-- Tailwind Configuration -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        pokerGreen: {
-                            800: '#0c3823',
-                            700: '#14532d',
-                            600: '#15803d',
-                            500: '#22c55e'
-                        },
-                        felt: '#0f3d24',
-                        feltBorder: '#3f2d1d',
-                        gold: {
-                            400: '#fbbf24',
-                            500: '#f59e0b',
-                            600: '#d97706'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace']
-                    }
-                }
-            }
-        };
-    </script>
-
-<<<<<<< HEAD
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #111827;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #374151;
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #4b5563;
-        }
-       /* Playing cards */
-   .poker-card { transition: transform 0.15s ease; user-select: none; }
-   .poker-card:hover { transform: translateY(-4px); }
-   .poker-card img, .poker-card svg { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35)); }
-    </style>
-=======
-    <!-- Custom CSS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
-
->>>>>>> d3a2fe9a95a8ca2ac459e0e4e0a79664bdfb34ad
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-x-hidden">
+<body>
 
-<!-- Top Header -->
-<header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-4 py-3">
-    <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-900/40">
-                ♠
-            </div>
-            <div>
-                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-green-200 to-amber-300 bg-clip-text text-transparent">
-                    PokerMind AI
-                </h1>
-                <p class="text-xs text-slate-400">Monte Carlo Engine & Gemini Coach</p>
-            </div>
-        </div>
-
-        <!-- Action Buttons / Key Setup -->
-        <div class="flex items-center gap-2">
-            <button onclick="toggleKeyModal()" id="apiKeyStatusBtn" class="px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-medium flex items-center gap-2 transition">
-                <span id="apiKeyDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span id="apiKeyText">Set Gemini API Key</span>
+<!-- Pinned to the top while scrolling -->
+<header class="topbar-wrap">
+    <div class="topbar">
+        <a class="wordmark" href="./">No-Brain Poker</a>
+        <nav>
+            <button class="link" onclick="openGuideModal()">Hand rankings</button>
+            <button id="apiKeyStatusBtn" class="link" onclick="toggleKeyModal()">
+                <span id="apiKeyDot"></span>
+                <span id="apiKeyText">Gemini key</span>
             </button>
-            <button onclick="openGuideModal()" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-book-open">poker</i> Strategy Cheat Sheet
-            </button>
-        </div>
+        </nav>
     </div>
 </header>
 
-<!-- Main Content Grid -->
-<main class="max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow">
+<main class="page">
 
-    <!-- Left Panel: Table, Controls & Calculator (7 Cols) -->
-    <section class="lg:col-span-7 flex flex-col gap-6">
+    <div class="intro">
+        <h1>Should you call?</h1>
+        <p>Set your two cards and the board. We deal out the rest 10,000 times and show how often you win.</p>
+    </div>
 
-        <!-- Quick Preset Scenarios -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-xs uppercase tracking-wider font-bold text-slate-400 flex items-center gap-2">
-                    <i class="fa-solid fa-bolt text-amber-400"></i> Practice Preset Scenarios
-                </h2>
-                <span class="text-xs text-slate-500">Quick load hands</span>
-            </div>
-            <div class="flex flex-wrap gap-2">
-                <button onclick="loadPreset('pocket_aces')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
-                    🔥 Pocket Aces (Preflop)
-                </button>
-                <button onclick="loadPreset('flush_draw')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
-                    🌊 Nut Flush Draw (Flop)
-                </button>
-                <button onclick="loadPreset('set_flop')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
-                    💣 Three of a Kind (Flop)
-                </button>
-                <button onclick="loadPreset('bluff_river')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium text-slate-300 border border-slate-700/60 transition">
-                    🎭 Missed Straight (River)
-                </button>
-            </div>
-        </div>
+    <!-- After you press Deal, the page scrolls so this whole row is on screen -->
+    <div class="workspace" id="workspace">
 
-        <!-- Poker Felt Visual Table -->
-        <div class="poker-felt rounded-3xl p-6 md:p-8 flex flex-col items-center justify-between min-h-[360px] relative overflow-hidden">
+        <!-- Left: the situation and the answer -->
+        <aside class="panel" aria-label="Your situation">
+            <h2>Your situation</h2>
 
-            <!-- Community Cards Area -->
-            <div class="text-center w-full z-10">
-                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/60 mb-2 block">
-                        Community Board (Flop / Turn / River)
-                    </span>
-                <div class="flex justify-center items-center gap-2 md:gap-3 my-2">
-                    <!-- 5 Board Card Slots -->
-                    <div onclick="openCardPicker('board', 0)" id="board-0" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
-                        <span class="text-xs text-emerald-400/60">Flop 1</span>
-                    </div>
-                    <div onclick="openCardPicker('board', 1)" id="board-1" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
-                        <span class="text-xs text-emerald-400/60">Flop 2</span>
-                    </div>
-                    <div onclick="openCardPicker('board', 2)" id="board-2" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
-                        <span class="text-xs text-emerald-400/60">Flop 3</span>
-                    </div>
-                    <div onclick="openCardPicker('board', 3)" id="board-3" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
-                        <span class="text-xs text-emerald-400/60">Turn</span>
-                    </div>
-                    <div onclick="openCardPicker('board', 4)" id="board-4" class="card w-14 h-20 md:w-16 md:h-24 bg-slate-900/80 border-2 border-dashed border-emerald-500/40 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400">
-                        <span class="text-xs text-emerald-400/60">River</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pot Display Center Badge -->
-            <div class="my-4 bg-slate-950/80 border border-amber-500/40 px-6 py-2 rounded-full backdrop-blur text-center shadow-lg z-10">
-                <span class="text-xs uppercase text-slate-400 tracking-wider font-semibold">Total Pot</span>
-                <div class="text-amber-400 font-extrabold text-xl font-mono" id="tablePotDisplay">$150</div>
-            </div>
-
-            <!-- Hole Cards Player Area -->
-            <div class="text-center w-full z-10">
-                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-200/80 mb-2 block">
-                        Your Hole Cards (Hand)
-                    </span>
-                <div class="flex justify-center items-center gap-3">
-                    <div onclick="openCardPicker('hole', 0)" id="hole-0" class="card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl">
-                        <span class="text-xs text-emerald-300/80 font-medium">Card 1</span>
-                    </div>
-                    <div onclick="openCardPicker('hole', 1)" id="hole-1" class="card w-16 h-24 md:w-20 md:h-28 bg-slate-900/90 border-2 border-dashed border-emerald-400/60 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 shadow-xl">
-                        <span class="text-xs text-emerald-300/80 font-medium">Card 2</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Table Clear Button -->
-            <button onclick="clearTableCards()" class="absolute bottom-3 right-3 text-xs text-emerald-200/50 hover:text-emerald-200 bg-slate-950/50 hover:bg-slate-900 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition">
-                <i class="fa-solid fa-rotate-left mr-1"></i> Clear Cards
-            </button>
-        </div>
-
-        <!-- Input Parameters & Run Button -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-                <label class="text-xs font-semibold text-slate-400 block mb-1">
-                    Active Opponents (<span id="opponentsVal">2</span>)
+            <label class="field">
+                <span class="field-head">Opponents <output id="opponentsVal">2</output></span>
+                <span class="hint">Players still in the hand</span>
+                <input type="range" min="1" max="8" value="2" id="opponentsInput" oninput="updateOpponents(this.value)">
+            </label>
+            <div class="pair">
+                <label class="field">
+                    <span class="field-head">Pot</span>
+                    <span class="hint">Money already in the middle</span>
+                    <span class="money"><span>$</span><input type="number" id="potInput" value="150" min="0" inputmode="decimal" oninput="updatePot(this.value)"></span>
                 </label>
-                <input type="range" min="1" max="8" value="2" id="opponentsInput" oninput="updateOpponents(this.value)" class="w-full accent-emerald-500 cursor-pointer">
-                <div class="flex justify-between text-[10px] text-slate-500 mt-1">
-                    <span>1 Heads up</span>
-                    <span>4 Medium</span>
-                    <span>8 Full Ring</span>
+                <label class="field">
+                    <span class="field-head">To call</span>
+                    <span class="hint">What it costs you to stay in</span>
+                    <span class="money"><span>$</span><input type="number" id="callInput" value="50" min="0" inputmode="decimal" oninput="updateCall(this.value)"></span>
+                </label>
+            </div>
+
+            <!-- visible label comes from style.css (#runSimBtn::after) -->
+            <button id="runSimBtn" class="btn-primary" aria-label="Deal 10,000 hands" onclick="runMonteCarloSimulation()">Deal 10,000 hands</button>
+
+            <div class="results" id="results" aria-live="polite">
+                <p id="resultsHint">Pick your two cards, then deal.</p>
+
+                <div id="simResultsCard" class="hidden">
+                    <p class="win-line"><span id="winRateVal">0.0%</span> <span class="win-label">chance you win</span></p>
+                    <div id="recommendedBadge">Call</div>
+
+                    <div class="bar" aria-hidden="true">
+                        <div id="winBar" style="width: 0%"></div>
+                        <div id="tieBar" style="width: 0%"></div>
+                        <div id="lossBar" style="width: 0%"></div>
+                    </div>
+                    <p id="equityBreakdownLabel">Win: 0% | Tie: 0% | Loss: 0%</p>
+
+                    <dl class="facts">
+                        <div><dt>Tie</dt><dd id="tieRateVal">0.0%</dd></div>
+                        <div><dt>Pot odds</dt><dd id="potOddsVal">0.0%</dd></div>
+                        <div><dt>Expected value</dt><dd id="evVal">+$0.00</dd></div>
+                    </dl>
+
+                    <p id="simAnalysisText"></p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Middle: the table -->
+        <section class="table-area" aria-label="Table">
+            <div class="felt">
+                <!-- opponents' seats and their bets; drawn by table.js to match the opponents slider -->
+                <div id="seats" class="seats" role="img" aria-label="2 opponents"></div>
+
+                <div class="board-row">
+                    <div id="board-0" role="button" tabindex="0" aria-label="Flop card 1" onclick="openCardPicker('board', 0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Flop 1</span></div>
+                    <div id="board-1" role="button" tabindex="0" aria-label="Flop card 2" onclick="openCardPicker('board', 1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Flop 2</span></div>
+                    <div id="board-2" role="button" tabindex="0" aria-label="Flop card 3" onclick="openCardPicker('board', 2)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Flop 3</span></div>
+                    <div id="board-3" role="button" tabindex="0" aria-label="Turn card" onclick="openCardPicker('board', 3)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Turn</span></div>
+                    <div id="board-4" role="button" tabindex="0" aria-label="River card" onclick="openCardPicker('board', 4)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>River</span></div>
+                </div>
+
+                <div class="pot-area">
+                    <span id="potChips" class="stacks" aria-hidden="true"></span>
+                    <p class="pot">Pot <span id="tablePotDisplay">$150</span></p>
+                </div>
+
+                <div class="hand">
+                    <div id="hole-0" role="button" tabindex="0" aria-label="Your first card" onclick="openCardPicker('hole', 0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Card 1</span></div>
+                    <div id="hole-1" role="button" tabindex="0" aria-label="Your second card" onclick="openCardPicker('hole', 1)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><span>Card 2</span></div>
+                </div>
+            </div>
+            <p class="table-tools"><button class="link" onclick="clearTableCards()">Clear table</button></p>
+
+            <p class="examples">
+                Try another hand:
+                <button class="link" onclick="loadPreset('pocket_aces')">pocket aces</button>,
+                <button class="link" onclick="loadPreset('flush_draw')">flush draw</button>,
+                <button class="link" onclick="loadPreset('set_flop')">set on the flop</button>,
+                <button class="link" onclick="loadPreset('bluff_river')">missed straight</button>
+            </p>
+        </section>
+
+        <!-- Right: the AI coach -->
+        <aside class="coach" aria-label="Coach">
+            <div class="coach-head">
+                <h2>Coach</h2>
+                <button class="link" onclick="clearChatHistory()">Clear</button>
+            </div>
+
+            <div id="chatMessages" aria-live="polite">
+                <div class="flex">
+                    <div>
+                        Ask me anything about the hand on the table, for example
+                        <button class="link" onclick="sendQuickPrompt('Explain why the Monte Carlo calculation recommends this action.')">why is that the move?</button>
+                        or
+                        <button class="link" onclick="sendQuickPrompt('What if my opponent goes all-in?')">what if they go all-in?</button>
+                    </div>
                 </div>
             </div>
 
-            <div>
-                <label class="text-xs font-semibold text-slate-400 block mb-1">Current Pot Size ($)</label>
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
-                    <input type="number" id="potInput" value="150" min="0" oninput="updatePot(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
-                </div>
-            </div>
-
-            <div>
-                <label class="text-xs font-semibold text-slate-400 block mb-1">To Call / Raise Amount ($)</label>
-                <div class="relative">
-                    <span class="absolute left-3 top-2 text-slate-500 font-mono text-sm">$</span>
-                    <input type="number" id="callInput" value="50" min="0" oninput="updateCall(this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl py-1.5 pl-7 pr-3 font-mono text-sm text-slate-100 focus:outline-none focus:border-emerald-500">
-                </div>
-            </div>
-
-            <div class="sm:col-span-3 mt-2">
-                <button id="runSimBtn" onclick="runMonteCarloSimulation()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-green-500 hover:from-emerald-500 hover:to-green-400 text-slate-950 font-extrabold rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 transition text-base">
-                    <i class="fa-solid fa-calculator"></i> Run Monte Carlo Simulation (10,000 Hands)
-                </button>
-            </div>
-        </div>
-
-        <!-- Monte Carlo Results Box -->
-        <div id="simResultsCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hidden">
-            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
-                <div>
-                    <h3 class="font-bold text-sm text-slate-200">Monte Carlo Equity Report</h3>
-                    <p class="text-xs text-slate-400">Simulated 10,000 random card deals</p>
-                </div>
-                <div id="recommendedBadge" class="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    RAISE / BET
-                </div>
-            </div>
-
-            <!-- Core Metrics Grid -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Win Equity</span>
-                    <span id="winRateVal" class="text-xl font-black text-emerald-400 font-mono">0.0%</span>
-                </div>
-                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Tie %</span>
-                    <span id="tieRateVal" class="text-xl font-black text-amber-400 font-mono">0.0%</span>
-                </div>
-                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Pot Odds</span>
-                    <span id="potOddsVal" class="text-xl font-black text-indigo-400 font-mono">0.0%</span>
-                </div>
-                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
-                    <span class="text-[10px] uppercase font-bold text-slate-500 block">Expected Value (EV)</span>
-                    <span id="evVal" class="text-xl font-black text-emerald-400 font-mono">+$0.00</span>
-                </div>
-            </div>
-
-            <!-- Visual Bar Breakdown -->
-            <div class="space-y-2">
-                <div class="flex justify-between text-xs text-slate-400">
-                    <span>Outcome Distribution</span>
-                    <span id="equityBreakdownLabel">Win: 0% | Tie: 0% | Loss: 0%</span>
-                </div>
-                <div class="h-3 w-full bg-slate-950 rounded-full overflow-hidden flex">
-                    <div id="winBar" class="bg-emerald-500 h-full transition-all duration-500" style="width: 0%"></div>
-                    <div id="tieBar" class="bg-amber-400 h-full transition-all duration-500" style="width: 0%"></div>
-                    <div id="lossBar" class="bg-rose-500 h-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <div class="mt-4 p-3 bg-slate-950/60 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed" id="simAnalysisText">
-                Run simulation to view mathematical decision analysis.
-            </div>
-        </div>
-
-    </section>
-
-    <!-- Right Panel: Gemini AI Chat Advisor (5 Cols) -->
-    <section class="lg:col-span-5 flex flex-col h-[650px] lg:h-auto bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-
-        <!-- Chat Header -->
-        <div class="bg-slate-800/80 border-b border-slate-700/60 p-3.5 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
-                    <i class="fa-solid fa-robot"></i>
-                </div>
-                <div>
-                    <h3 class="text-sm font-bold text-slate-100">Gemini Poker Coach</h3>
-                    <p class="text-[10px] text-emerald-400 flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Context-Aware Assistant
-                    </p>
-                </div>
-            </div>
-            <button onclick="clearChatHistory()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-700/50 transition">
-                Clear Chat
-            </button>
-        </div>
-
-        <!-- Chat Message List -->
-        <div id="chatMessages" class="flex-grow p-4 overflow-y-auto space-y-3 font-sans text-sm">
-            <!-- Welcome Bot Message -->
-            <div class="flex items-start gap-2.5">
-                <div class="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs shrink-0 mt-0.5">
-                    <i class="fa-solid fa-robot"></i>
-                </div>
-                <div class="bg-slate-800 border border-slate-700/70 p-3 rounded-2xl rounded-tl-xs text-slate-300 max-w-[85%] text-xs leading-relaxed">
-                    Welcome! I'm your Gemini Texas Hold'em AI Coach. Select your 2 hole cards and any community board cards on the table, then run the Monte Carlo simulation.
-                    <br><br>
-                    Once simulated, ask me anything! E.g. <i>"Should I re-raise or just call?"</i> or <i>"Explain pot odds to me like I'm 10."</i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick AI Prompt Suggestions -->
-        <div class="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex gap-2 overflow-x-auto text-[11px] no-scrollbar">
-            <button onclick="sendQuickPrompt('Explain why the Monte Carlo calculation recommends this action.')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
-                💡 Explain recommendation
-            </button>
-            <button onclick="sendQuickPrompt('What if my opponent goes all-in?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
-                ⚔️ What if they call/re-raise?
-            </button>
-            <button onclick="sendQuickPrompt('How does my table position affect this decision?')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg whitespace-nowrap border border-slate-700">
-                📍 Position Advice
-            </button>
-        </div>
-
-        <!-- Chat Input Form -->
-        <form onsubmit="handleChatSubmit(event)" class="p-3 bg-slate-950 border-t border-slate-800 flex gap-2">
-            <input type="text" id="chatInput" placeholder="Ask Gemini strategy question..." class="flex-grow bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 placeholder-slate-500">
-            <button type="submit" id="sendBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shrink-0">
-                <span>Send</span>
-                <i class="fa-solid fa-paper-plane text-[10px]"></i>
-            </button>
-        </form>
-    </section>
-
+            <form class="ask" onsubmit="handleChatSubmit(event)">
+                <input type="text" id="chatInput" placeholder="Ask about this hand" autocomplete="off" aria-label="Ask the coach">
+                <button type="submit" id="sendBtn" class="btn-primary"><span>Send</span></button>
+            </form>
+        </aside>
+    </div>
 </main>
 
-<!-- Card Picker Modal -->
-<div id="cardPickerModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl">
-        <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
-            <h3 class="text-sm font-bold text-slate-200" id="pickerModalTitle">Select Card</h3>
-            <button onclick="closeCardPicker()" class="text-slate-400 hover:text-slate-100 text-sm">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <!-- Suit Selector Tabs -->
-        <div class="flex gap-2 mb-4 bg-slate-950 p-1 rounded-xl">
-            <button onclick="filterSuit('s')" id="suitBtn-s" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-200">♠ Spades</button>
-            <button onclick="filterSuit('h')" id="suitBtn-h" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800">♥ Hearts</button>
-            <button onclick="filterSuit('d')" id="suitBtn-d" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-red-400 hover:bg-slate-800">♦ Diamonds</button>
-            <button onclick="filterSuit('c')" id="suitBtn-c" class="suit-tab flex-1 py-1.5 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-800">♣ Clubs</button>
-        </div>
-
-        <!-- Rank Grid -->
-        <div class="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-60 overflow-y-auto p-1" id="cardRankGrid">
-            <!-- Dynamically generated card buttons -->
-        </div>
-
-        <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between">
-            <button onclick="removeSelectedCard()" class="px-3 py-1.5 bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 rounded-lg text-xs font-semibold">
-                Remove Card
-            </button>
-            <button onclick="closeCardPicker()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">
-                Cancel
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- API Key Settings Modal -->
-<div id="keyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-        <h3 class="text-base font-bold text-slate-100 mb-2">Configure Gemini API Key</h3>
-        <p class="text-xs text-slate-400 leading-relaxed mb-4">
-            Enter your Google Gemini API Key below. Your key is stored strictly in your local browser storage and is never sent to any intermediate server.
-        </p>
-
-        <div class="mb-4">
-            <label class="text-xs font-bold text-slate-300 block mb-1">Gemini API Key</label>
-            <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 focus:outline-none focus:border-emerald-500">
-        </div>
-
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-400 mb-4 space-y-1">
-            <p class="font-semibold text-slate-300">How to get a free API Key:</p>
-            <ol class="list-decimal list-inside space-y-0.5 text-slate-400">
-                <li>Visit <a href="https://aistudio.google.com/" target="_blank" class="text-emerald-400 underline">Google AI Studio</a></li>
-                <li>Click "Get API Key"</li>
-                <li>Paste your generated key here</li>
-            </ol>
-        </div>
-
-        <div class="flex justify-end gap-2">
-            <button onclick="toggleKeyModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Cancel</button>
-            <button onclick="saveApiKey()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs">Save Key</button>
-        </div>
-    </div>
-</div>
-
-<!-- Strategy Cheat Sheet Modal -->
-<div id="guideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
-            <h3 class="text-base font-bold text-slate-100"><i class="fa-solid fa-graduation-cap text-emerald-400 mr-2"></i> Texas Hold'em Beginner Cheat Sheet</h3>
-            <button onclick="closeGuideModal()" class="text-slate-400 hover:text-slate-100 text-sm">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <!-- Poker Hand Rankings -->
-        <div class="space-y-4 text-xs">
-            <div>
-                <h4 class="font-bold text-amber-400 uppercase tracking-wider mb-2">Hand Rankings (Highest to Lowest)</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>1. Royal Flush:</b> A, K, Q, J, 10 same suit</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>2. Straight Flush:</b> 5 consecutive same suit</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>3. Four of a Kind:</b> 4 cards same rank</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>4. Full House:</b> 3 of a kind + 1 pair</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>5. Flush:</b> Any 5 cards same suit</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>6. Straight:</b> 5 consecutive rank cards</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>7. Three of a Kind:</b> 3 cards same rank</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>8. Two Pair:</b> 2 distinct pairs</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>9. One Pair:</b> 2 cards same rank</div>
-                    <div class="p-2 bg-slate-950 rounded-lg border border-slate-800"><b>10. High Card:</b> Highest single card</div>
-                </div>
-            </div>
-
-            <div>
-                <h4 class="font-bold text-emerald-400 uppercase tracking-wider mb-2">Key Concepts Glossary</h4>
-                <div class="space-y-2 text-slate-300">
-                    <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Pot Odds:</b> The ratio of the current pot size to the cost of a contemplated call. If calling costs $50 into a $150 pot, pot odds are 50 / (150+50) = 25%.</p>
-                    <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Win Equity:</b> Your mathematical percentage probability of winning the hand by the river based on simulation.</p>
-                    <p class="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><b class="text-slate-100">Expected Value (EV):</b> The average amount won or lost per bet over the long run. If Win Equity > Pot Odds, EV is positive (+EV).</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Footer -->
-<footer class="border-t border-slate-800 bg-slate-950 py-3 text-center text-xs text-slate-500">
-    PokerMind AI © 2026 • Client-Side Monte Carlo Engine & Gemini API Integration
+<footer class="footnote">
+    For learning. Odds are estimates from 10,000 simulated deals.
 </footer>
 
+<!-- Card picker -->
+<div id="cardPickerModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pickerModalTitle">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h2 id="pickerModalTitle">Select card</h2>
+            <button class="close" onclick="closeCardPicker()" aria-label="Close">&times;</button>
+        </div>
+        <div class="suits">
+            <button onclick="filterSuit('s')" id="suitBtn-s" class="suit-tab bg-slate-800">&spades; Spades</button>
+            <button onclick="filterSuit('h')" id="suitBtn-h" class="suit-tab">&hearts; Hearts</button>
+            <button onclick="filterSuit('d')" id="suitBtn-d" class="suit-tab">&diams; Diamonds</button>
+            <button onclick="filterSuit('c')" id="suitBtn-c" class="suit-tab">&clubs; Clubs</button>
+        </div>
+        <div id="cardRankGrid"></div>
+        <div class="sheet-foot">
+            <button class="link danger" onclick="removeSelectedCard()">Remove card</button>
+            <button class="btn-quiet" onclick="closeCardPicker()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Gemini key -->
+<div id="keyModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
+    <div class="sheet">
+        <div class="sheet-head">
+            <h2 id="keyTitle">Gemini API key</h2>
+            <button class="close" onclick="toggleKeyModal()" aria-label="Close">&times;</button>
+        </div>
+        <p class="key-help">The coach runs on Google Gemini. Get a free key at
+            <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a> under &ldquo;Get API key&rdquo;.</p>
+        <label class="key-field">
+            Key
+            <input type="password" id="apiKeyInput" placeholder="AIza..." autocomplete="off">
+        </label>
+        <div class="sheet-actions">
+            <button class="btn-quiet" onclick="toggleKeyModal()">Cancel</button>
+            <button class="btn-primary" onclick="saveApiKey()">Save key</button>
+        </div>
+    </div>
+</div>
+
+<!-- Hand rankings -->
+<div id="guideModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+    <div class="sheet guide">
+        <div class="sheet-head">
+            <h2 id="guideTitle">Hand rankings</h2>
+            <button class="close" onclick="closeGuideModal()" aria-label="Close">&times;</button>
+        </div>
+        <h3>Strongest to weakest</h3>
+        <ol class="ranks">
+            <li>Royal flush <span>A K Q J 10, one suit</span></li>
+            <li>Straight flush <span>five in a row, one suit</span></li>
+            <li>Four of a kind <span>four cards of one rank</span></li>
+            <li>Full house <span>three of a kind plus a pair</span></li>
+            <li>Flush <span>any five cards of one suit</span></li>
+            <li>Straight <span>five in a row, mixed suits</span></li>
+            <li>Three of a kind</li>
+            <li>Two pair</li>
+            <li>One pair</li>
+            <li>High card <span>none of the above</span></li>
+        </ol>
+        <h3>The three numbers</h3>
+        <dl class="terms">
+            <div><dt>Chance you win (equity)</dt><dd>How often your hand wins if it's played to the end. The simulation estimates it.</dd></div>
+            <div><dt>Pot odds</dt><dd>Your share of the final pot. Calling $50 into a $150 pot means paying 50 of 200, which is 25%.</dd></div>
+            <div><dt>Expected value</dt><dd>If your chance of winning is higher than the pot odds, calling makes money over time. If it's lower, it loses money.</dd></div>
+        </dl>
+    </div>
+</div>
+
 <script type="module" src="./script.js"></script>
+<script type="module">
+    // Deal an example hand on first load, so the table isn't empty
+    window.addEventListener('load', () => window.loadPreset?.('flush_draw'));
+
+    // After pressing Deal, scroll past the intro so the table and the win rate are both on screen
+    document.getElementById('runSimBtn').addEventListener('click', () => {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const target = window.matchMedia('(min-width: 1024px)').matches
+            ? document.getElementById('workspace')   // wide screens: table and win rate side by side
+            : document.getElementById('results');    // phones: jump to the answer
+        target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+
+    // Esc closes whichever dialog is open
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const isOpen = (id) => !document.getElementById(id).classList.contains('hidden');
+        if (isOpen('cardPickerModal')) window.closeCardPicker?.();
+        else if (isOpen('guideModal')) window.closeGuideModal?.();
+        else if (isOpen('keyModal')) window.toggleKeyModal?.();
+    });
+</script>
 </body>
 </html>
